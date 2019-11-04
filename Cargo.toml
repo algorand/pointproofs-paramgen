@@ -1,0 +1,12 @@
+[package]
+name = "veccom-paramgen"
+version = "0.1.0"
+authors = ["Adam <adam@algorand.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+pairing-plus = { git = "https://github.com/algorand/pairing-plus", branch = "master" }
+ff = "0.4"
+rand = "0.7"
