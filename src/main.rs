@@ -7,7 +7,7 @@ use pairing::serdes::SerDes;
 use pairing::{CurveAffine, CurveProjective};
 use pairing::{EncodedPoint, Engine};
 
-use std::io::{Read, Result, Write};
+use std::io::{Error, ErrorKind, Read, Result, Write};
 
 extern crate ff;
 use ff::Field;
@@ -35,8 +35,11 @@ pub struct VeccomParams {
     gt_alpha_nplus1: Fq12,
 }
 
-impl VeccomParams {
-    pub fn serialize<W: Write>(&self, w: &mut W) -> Result<()> {
+impl SerDes for VeccomParams {
+    fn serialize<W: Write>(&self, w: &mut W, compressed : bool) -> Result<()> {
+        if !compressed {
+            return Err(Error::new(ErrorKind::Other, "veccom params can only be (de)serialized with compressed=true"));
+        }
         for pt in &self.g1_alpha_1_to_n[..] {
             pt.serialize(w, true)?;
         }
@@ -49,7 +52,10 @@ impl VeccomParams {
         self.gt_alpha_nplus1.serialize(w, true)?;
         Ok(())
     }
-    pub fn deserialize<R: Read>(r: &mut R) -> Result<Self> {
+    fn deserialize<R: Read>(r: &mut R, compressed : bool) -> Result<Self> {
+        if !compressed {
+            return Err(Error::new(ErrorKind::Other, "veccom params can only be (de)serialized with compressed=true"));
+        }
         let mut g1_alpha_1_to_n = [G1Affine::zero(); N];
         let mut g1_alpha_nplus2_to_2n = [G1Affine::zero(); N - 1];
         let mut g2_alpha_1_to_n = [G2Affine::zero(); N];
@@ -312,7 +318,7 @@ fn main() {
 
     println!("Loading params from /tmp/params.in...");
     let mut f = File::open("/tmp/params.in").unwrap();
-    let params = VeccomParams::deserialize(&mut f).unwrap();
+    let params = VeccomParams::deserialize(&mut f, true).unwrap();
     println!("Loaded.");
     println!("Checking...");
     if !consistent(&params) {
@@ -332,6 +338,6 @@ fn main() {
 
     println!("Serializing params to /tmp/params.out");
     let mut f = File::create("/tmp/params.out").unwrap();
-    params2.serialize(&mut f).unwrap();
+    params2.serialize(&mut f, true).unwrap();
     println!("Done!");
 }
