@@ -1,11 +1,10 @@
-extern crate pairing_plus as pairing;
-use pairing::bls12_381;
-use pairing::bls12_381::{Bls12, Fq12, Fr, FrRepr, G1Affine, G2Affine, G2Compressed, G1, G2};
-use pairing::hash_to_curve::HashToCurve;
-use pairing::hash_to_field::FromRO;
-use pairing::serdes::SerDes;
-use pairing::{CurveAffine, CurveProjective};
-use pairing::{EncodedPoint, Engine};
+extern crate pairing_plus as pairing_plus;
+use pairing_plus::bls12_381;
+use pairing_plus::bls12_381::{Bls12, Fq12, Fr, FrRepr, G1Affine, G2Affine, G1, G2};
+use pairing_plus::hash_to_field::FromRO;
+use pairing_plus::serdes::SerDes;
+use pairing_plus::{CurveAffine, CurveProjective};
+use pairing_plus::{Engine};
 
 use std::io::{Error, ErrorKind, Read, Result, Write};
 
@@ -18,6 +17,10 @@ use std::fs::File;
 extern crate rand;
 use rand::rngs::OsRng;
 use rand::RngCore;
+
+extern crate bls_sigs_ref as bls;
+use bls::BLSSignaturePop;
+use bls::BLSSigCore;
 
 const N: usize = 1024;
 
@@ -83,7 +86,7 @@ impl SerDes for VeccomParams {
 // Proof of knowledge of exponent
 pub struct PoK {
     g2beta: G2Affine,  // g2^beta (where we're proving knowledge of beta)
-    hg1beta: G1Affine, // HashToG1(g2beta)^beta
+    pop: G1Affine, // HashToG1(g2beta)^beta
 }
 
 fn random_scalar() -> Fr {
@@ -102,7 +105,6 @@ pub fn consistent(params: &VeccomParams) -> bool {
         .iter()
         .any(|&x| x == G1Affine::zero() || x == G1Affine::one())
     {
-        println!("g1_alpha_1_to_n points must be nonzero and not the generator");
         return false;
     }
 
@@ -111,7 +113,6 @@ pub fn consistent(params: &VeccomParams) -> bool {
         .iter()
         .any(|&x| x == G1Affine::zero() || x == G1Affine::one())
     {
-        println!("g1_alpha_nplus2_to_2n points must be nonzero and not the generator");
         return false;
     }
 
@@ -120,7 +121,6 @@ pub fn consistent(params: &VeccomParams) -> bool {
         .iter()
         .any(|&x| x == G2Affine::zero() || x == G2Affine::one())
     {
-        println!("g2_alpha_1_to_n points must be nonzero and not the generator");
         return false;
     }
 
@@ -186,34 +186,20 @@ pub fn consistent(params: &VeccomParams) -> bool {
     true
 }
 
-pub fn makepok(beta: Fr) -> PoK {
-    let g2beta = G2Affine::one().mul(beta).into_affine();
-    // pok is supposed to be HashToG1("VecCom param gen proof of possession", g2beta.serialize())^beta
-    let mut h = G1::hash_to_curve(
-        G2Compressed::from_affine(g2beta),
-        "VecCom param gen proof of possession",
-    );
-    h.mul_assign(beta);
+pub fn makepok<B: AsRef<[u8]>>(sk: B) -> PoK {
+    let (_beta, g2beta) = <G1 as BLSSigCore>::keygen(&sk);
+    let h = G1::pop_prove(sk);
     PoK {
-        g2beta,
-        hg1beta: h.into_affine(),
+        g2beta: g2beta.into_affine(),
+        pop: h.into_affine(),
     }
 }
 
 pub fn checkpok(pok: &PoK) -> bool {
-    // h2g1 is supposed to be HashToG1("VecCom param gen proof of possession", g2beta.serialize())^beta
-    if pok.hg1beta.is_zero() || pok.g2beta.is_zero() {
+    if pok.pop.is_zero() || pok.g2beta.is_zero() {
         return false;
     }
-    let h = {
-        let mut h = G1::hash_to_curve(
-            G2Compressed::from_affine(pok.g2beta),
-            "VecCom param gen proof of possession",
-        );
-        h.negate();
-        h
-    };
-    Bls12::pairing_product(pok.hg1beta, G2Affine::one(), h.into_affine(), pok.g2beta) == Fq12::one()
+    <G1 as BLSSignaturePop>::pop_verify(pok.g2beta.into_projective(), pok.pop.into_projective())
 }
 
 pub fn check_rerandomization(params: &VeccomParams, g1alpha_old: G1Affine, proof: PoK) -> bool {
@@ -272,7 +258,9 @@ pub fn generate(alpha: Fr) -> VeccomParams {
     }
 }
 
-pub fn rerandomize(params: &VeccomParams, alpha: Fr) -> (VeccomParams, PoK) {
+pub fn rerandomize<B: AsRef<[u8]>>(params: &VeccomParams, entropy: B) -> (VeccomParams, PoK) {
+    let (alpha, _) = G1::keygen(&entropy);
+
     let mut g1_alpha_1_to_n: [G1Affine; N] = [G1Affine::zero(); N];
     let mut g1_alpha_nplus2_to_2n: [G1Affine; N - 1] = [G1Affine::zero(); N - 1];
     let mut g2_alpha_1_to_n: [G2Affine; N] = [G2Affine::zero(); N];
@@ -303,7 +291,7 @@ pub fn rerandomize(params: &VeccomParams, alpha: Fr) -> (VeccomParams, PoK) {
             g2_alpha_1_to_n,
             gt_alpha_nplus1,
         },
-        makepok(alpha),
+        makepok(entropy),
     )
 }
 
@@ -328,8 +316,9 @@ fn main() {
     }
 
     println!("Randomizing...");
-    let r = random_scalar();
-    let (params2, proof) = rerandomize(&params, r);
+    let mut r: [u8; 64] = [0; 64];
+    OsRng {}.fill_bytes(&mut r[..]);
+    let (params2, proof) = rerandomize(&params, &r[..]);
     println!("Checking proof we just created...");
     println!(
         "{}",
