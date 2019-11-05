@@ -3,8 +3,8 @@ use pairing_plus::bls12_381;
 use pairing_plus::bls12_381::{Bls12, Fq12, Fr, FrRepr, G1Affine, G2Affine, G1, G2};
 use pairing_plus::hash_to_field::FromRO;
 use pairing_plus::serdes::SerDes;
+use pairing_plus::Engine;
 use pairing_plus::{CurveAffine, CurveProjective};
-use pairing_plus::{Engine};
 
 use std::io::{Error, ErrorKind, Read, Result, Write};
 
@@ -19,8 +19,8 @@ use rand::rngs::OsRng;
 use rand::RngCore;
 
 extern crate bls_sigs_ref as bls;
-use bls::BLSSignaturePop;
 use bls::BLSSigCore;
+use bls::BLSSignaturePop;
 
 const N: usize = 1024;
 
@@ -39,9 +39,12 @@ pub struct VeccomParams {
 }
 
 impl SerDes for VeccomParams {
-    fn serialize<W: Write>(&self, w: &mut W, compressed : bool) -> Result<()> {
+    fn serialize<W: Write>(&self, w: &mut W, compressed: bool) -> Result<()> {
         if !compressed {
-            return Err(Error::new(ErrorKind::Other, "veccom params can only be (de)serialized with compressed=true"));
+            return Err(Error::new(
+                ErrorKind::Other,
+                "veccom params can only be (de)serialized with compressed=true",
+            ));
         }
         for pt in &self.g1_alpha_1_to_n[..] {
             pt.serialize(w, true)?;
@@ -55,9 +58,12 @@ impl SerDes for VeccomParams {
         self.gt_alpha_nplus1.serialize(w, true)?;
         Ok(())
     }
-    fn deserialize<R: Read>(r: &mut R, compressed : bool) -> Result<Self> {
+    fn deserialize<R: Read>(r: &mut R, compressed: bool) -> Result<Self> {
         if !compressed {
-            return Err(Error::new(ErrorKind::Other, "veccom params can only be (de)serialized with compressed=true"));
+            return Err(Error::new(
+                ErrorKind::Other,
+                "veccom params can only be (de)serialized with compressed=true",
+            ));
         }
         let mut g1_alpha_1_to_n = [G1Affine::zero(); N];
         let mut g1_alpha_nplus2_to_2n = [G1Affine::zero(); N - 1];
@@ -85,8 +91,8 @@ impl SerDes for VeccomParams {
 
 // Proof of knowledge of exponent
 pub struct PoK {
-    g2beta: G2Affine,  // g2^beta (where we're proving knowledge of beta)
-    pop: G1Affine, // HashToG1(g2beta)^beta
+    g2beta: G2Affine, // g2^beta (where we're proving knowledge of beta)
+    pop: G1Affine,    // HashToG1(g2beta)^beta
 }
 
 fn random_scalar() -> Fr {
