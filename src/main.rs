@@ -95,6 +95,31 @@ pub struct PoK {
     pop: G1Affine,    // HashToG1(g2beta)^beta
 }
 
+impl SerDes for PoK {
+    fn deserialize<R: Read>(r: &mut R, compressed: bool) -> Result<Self> {
+        if !compressed {
+            return Err(Error::new(
+                ErrorKind::Other,
+                "PoK can only be (de)serialized with compressed=true",
+            ));
+        }
+        let g2beta = G2Affine::deserialize(r, true)?;
+        let pop = G1Affine::deserialize(r, true)?;
+        Ok(PoK { g2beta, pop })
+    }
+    fn serialize<W: Write>(&self, w: &mut W, compressed: bool) -> Result<()> {
+        if !compressed {
+            return Err(Error::new(
+                ErrorKind::Other,
+                "PoK can only be (de)serialized with compressed=true",
+            ));
+        }
+        self.g2beta.serialize(w, true)?;
+        self.pop.serialize(w, true)?;
+        Ok(())
+    }
+}
+
 fn random_scalar() -> Fr {
     let mut r: [u8; 64] = [0; 64];
     OsRng {}.fill_bytes(&mut r[..]);
@@ -208,7 +233,7 @@ pub fn checkpok(pok: &PoK) -> bool {
     <G1 as BLSSignaturePop>::pop_verify(pok.g2beta.into_projective(), pok.pop.into_projective())
 }
 
-pub fn check_rerandomization(params: &VeccomParams, g1alpha_old: G1Affine, proof: PoK) -> bool {
+pub fn check_rerandomization(params: &VeccomParams, g1alpha_old: G1Affine, proof: &PoK) -> bool {
     let g2inv = {
         let mut g = G2Affine::one();
         g.negate();
@@ -301,38 +326,88 @@ pub fn rerandomize<B: AsRef<[u8]>>(params: &VeccomParams, entropy: B) -> (Veccom
     )
 }
 
+fn usage(progname: &str) {
+    eprintln!("Usage:
+	{0} generate /tmp/params.out
+		Generates starting parameters with alpha = 2
+	{0} evolve /tmp/params.in /tmp/params.out
+		Reads old params from /tmp/params.in, rerandomizes them and writes them (with a proof of knowledge of the mixed-in exponent) to /tmp/params.out
+	{0} verify /tmp/params.old /tmp/params.new
+		Given assumed-good old params and a newly rerandomized version (with a proof of knowledge of the mixed-in exponent), verify that the new parameters were rerandomized correctly (i.e., check that the parameters are self-consistent and that the proof is correct).
+", progname);
+}
+
 fn main() {
-    /*
-    println!("Generating...");
-    let params = generate(Fr::from_repr(bls12_381::FrRepr::from(2)).unwrap());
-    println!("Generated.");
-    let mut f = File::create("/tmp/params.2").unwrap();
-    &params.serialize(&mut f).unwrap();
-    */
-
-    println!("Loading params from /tmp/params.in...");
-    let mut f = File::open("/tmp/params.in").unwrap();
-    let params = VeccomParams::deserialize(&mut f, true).unwrap();
-    println!("Loaded.");
-    println!("Checking...");
-    if !consistent(&params) {
-        panic!("Input params are not consistent");
-    } else {
-        println!("OK");
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() < 3 {
+        usage(&args[0]);
+        return;
     }
+    match args[1].as_str() {
+        "generate" => {
+            let mut f = File::create(&args[2]).unwrap();
+            println!("Generating...");
+            let params = generate(Fr::from_repr(bls12_381::FrRepr::from(2)).unwrap());
+            println!("Generated.");
+            params.serialize(&mut f, true).unwrap();
+        }
+        "evolve" => {
+            if args.len() < 4 {
+                usage(&args[0]);
+                return;
+            }
+            println!("Loading params...");
+            let mut f = File::open(&args[2]).unwrap();
+            let params_in = VeccomParams::deserialize(&mut f, true).unwrap();
+            println!("Loaded.");
+            println!("Checking...");
+            if !consistent(&params_in) {
+                panic!("Input params are not consistent");
+            } else {
+                println!("Input params OK");
+            }
 
-    println!("Randomizing...");
-    let mut r: [u8; 64] = [0; 64];
-    OsRng {}.fill_bytes(&mut r[..]);
-    let (params2, proof) = rerandomize(&params, &r[..]);
-    println!("Checking proof we just created...");
-    println!(
-        "{}",
-        check_rerandomization(&params2, params.g1_alpha_1_to_n[0], proof)
-    );
+            println!("Randomizing...");
+            let mut r: [u8; 64] = [0; 64];
+            OsRng {}.fill_bytes(&mut r[..]);
+            let (params_out, proof) = rerandomize(&params_in, &r[..]);
+            println!("Sanity-checking proof we just created...");
+            println!(
+                "{}",
+                check_rerandomization(&params_out, params_in.g1_alpha_1_to_n[0], &proof)
+            );
 
-    println!("Serializing params to /tmp/params.out");
-    let mut f = File::create("/tmp/params.out").unwrap();
-    params2.serialize(&mut f, true).unwrap();
-    println!("Done!");
+            println!("Serializing params and proof to {}", &args[3]);
+            let mut f = File::create(&args[3]).unwrap();
+            params_out.serialize(&mut f, true).unwrap();
+            proof.serialize(&mut f, true).unwrap();
+            println!("Done!");
+        }
+        "verify" => {
+            if args.len() < 4 {
+                usage(&args[0]);
+                return;
+            }
+            println!("Loading old (assumed-good) params from {}", &args[2]);
+            let params_old = {
+                let mut f = File::open(&args[2]).unwrap();
+                VeccomParams::deserialize(&mut f, true).unwrap()
+            };
+            println!("Loading new params (with proof) from {}", &args[3]);
+            let mut f = File::open(&args[3]).unwrap();
+            let params_new = VeccomParams::deserialize(&mut f, true).unwrap();
+            let proof = PoK::deserialize(&mut f, true).unwrap();
+
+            println!("Verifying...");
+            if check_rerandomization(&params_new, params_old.g1_alpha_1_to_n[0], &proof) {
+                println!("Success!");
+            } else {
+                println!("FAILURE: Parameters or proof incorrect");
+                println!("consistent: {}", consistent(&params_new));
+            }
+        }
+        _ => {
+            usage(&args[0]);
+        }
+    }
 }
