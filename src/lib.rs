@@ -20,6 +20,9 @@ extern crate bls_sigs_ref as bls;
 use bls::BLSSigCore;
 use bls::BLSSignaturePop;
 
+#[cfg(test)]
+mod test;
+
 const N: usize = 1024;
 
 pub struct VeccomParams {
