@@ -16,9 +16,12 @@ use rand::RngCore;
 extern crate veccom_paramgen;
 use veccom_paramgen::*;
 
+extern crate atoi;
+use atoi::atoi;
+
 fn usage(progname: &str) {
     eprintln!("Usage:
-	{0} generate /tmp/params.out
+	{0} generate /tmp/params.out ciphersuite_ID parameter_n
 		Generates starting parameters with alpha = 2
 	{0} evolve /tmp/params.in /tmp/params.out
 		Reads old params from /tmp/params.in, rerandomizes them and writes them (with a proof of knowledge of the mixed-in exponent) to /tmp/params.out
@@ -28,16 +31,37 @@ fn usage(progname: &str) {
 }
 
 fn main() {
+    // let n = 1024;
     let args: Vec<String> = std::env::args().collect();
-    if args.len() < 3 {
+    if args.len() < 4 {
         usage(&args[0]);
         return;
     }
     match args[1].as_str() {
         "generate" => {
+            // parse ciphersuite ID, which is only one byte
+            if args[3].len() > 1 {
+                usage(&args[0]);
+                return;
+            }
+            let ciphersuite = args[3].as_bytes()[0];
+
+            // parse the parameter n, a usize
+            let n = match atoi::<usize>(args[4].as_bytes()) {
+                Some(p) => p,
+                None => {
+                    usage(&args[0]);
+                    return;
+                }
+            };
+
             let mut f = File::create(&args[2]).unwrap();
             println!("Generating...");
-            let params = generate(Fr::from_repr(bls12_381::FrRepr::from(2)).unwrap());
+            let params = generate(
+                Fr::from_repr(bls12_381::FrRepr::from(2)).unwrap(),
+                ciphersuite,
+                n,
+            );
             println!("Generated.");
             params.serialize(&mut f, true).unwrap();
         }

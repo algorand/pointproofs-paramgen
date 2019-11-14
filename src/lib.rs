@@ -23,17 +23,24 @@ use bls::BLSSignaturePop;
 #[cfg(test)]
 mod test;
 
-const N: usize = 1024;
+//const N: usize = 1024;
 
+#[derive(Debug, PartialEq)]
 pub struct VeccomParams {
+    /// ciphersuite id
+    pub ciphersuite: u8,
+
+    /// parameter N
+    pub n: usize,
+
     /// g1^{alpha}, g1^{alpha^2}, ..., g1^{alpha^N}
-    pub g1_alpha_1_to_n: [G1Affine; N],
+    pub g1_alpha_1_to_n: Vec<G1Affine>, // [G1Affine; N],
 
     /// g1^{alpha^{N+2}}, g1^{alpha^{N+3}}, ..., g1^{alpha^{2N}}
-    pub g1_alpha_nplus2_to_2n: [G1Affine; N - 1],
+    pub g1_alpha_nplus2_to_2n: Vec<G1Affine>, // [G1Affine; N - 1],
 
     /// g2^{alpha}, ..., g2^{alpha^N}
-    pub g2_alpha_1_to_n: [G2Affine; N],
+    pub g2_alpha_1_to_n: Vec<G2Affine>, //[G2Affine; N],
 
     /// e(g1,g2)^{alpha^{N+1}}
     pub gt_alpha_nplus1: Fq12,
@@ -47,13 +54,15 @@ impl SerDes for VeccomParams {
                 "veccom params can only be (de)serialized with compressed=true",
             ));
         }
-        for pt in &self.g1_alpha_1_to_n[..] {
+        w.write_all(&[self.ciphersuite])?;
+        w.write_all(&self.n.to_le_bytes())?;
+        for pt in &self.g1_alpha_1_to_n {
             pt.serialize(w, true)?;
         }
-        for pt in &self.g1_alpha_nplus2_to_2n[..] {
+        for pt in &self.g1_alpha_nplus2_to_2n {
             pt.serialize(w, true)?;
         }
-        for pt in &self.g2_alpha_1_to_n[..] {
+        for pt in &self.g2_alpha_1_to_n {
             pt.serialize(w, true)?;
         }
         self.gt_alpha_nplus1.serialize(w, true)?;
@@ -66,27 +75,44 @@ impl SerDes for VeccomParams {
                 "veccom params can only be (de)serialized with compressed=true",
             ));
         }
-        let mut g1_alpha_1_to_n = [G1Affine::zero(); N];
-        let mut g1_alpha_nplus2_to_2n = [G1Affine::zero(); N - 1];
-        let mut g2_alpha_1_to_n = [G2Affine::zero(); N];
+
+        // read ciphersuite
+        let mut ciphersuite = [0u8; 1];
+        r.read_exact(&mut ciphersuite)?;
+
+        // read parameter n
+        let mut buf = [0u8; 8];
+        r.read_exact(&mut buf)?;
+        let n = usize::from_le_bytes(buf);
+
+        let mut g1_alpha_1_to_n: Vec<G1Affine> = vec![];
+        let mut g1_alpha_nplus2_to_2n: Vec<G1Affine> = vec![];
+        let mut g2_alpha_1_to_n: Vec<G2Affine> = vec![];
         let gt_alpha_nplus1: Fq12;
-        for elt in g1_alpha_1_to_n[..].iter_mut() {
-            *elt = G1Affine::deserialize(r, true)?;
+
+        for _ in 0..n {
+            let tmp = G1Affine::deserialize(r, true)?;
+            g1_alpha_1_to_n.push(tmp);
         }
-        for elt in g1_alpha_nplus2_to_2n[..].iter_mut() {
-            *elt = G1Affine::deserialize(r, true)?;
+        for _ in 0..n - 1 {
+            let tmp = G1Affine::deserialize(r, true)?;
+            g1_alpha_nplus2_to_2n.push(tmp);
         }
-        for elt in g2_alpha_1_to_n[..].iter_mut() {
-            *elt = G2Affine::deserialize(r, true)?;
+        for _ in 0..n {
+            let tmp = G2Affine::deserialize(r, true)?;
+            g2_alpha_1_to_n.push(tmp);
         }
+
         gt_alpha_nplus1 = Fq12::deserialize(r, true)?;
-        let params = VeccomParams {
+
+        Ok(VeccomParams {
+            ciphersuite: ciphersuite[0],
+            n,
             g1_alpha_1_to_n,
             g1_alpha_nplus2_to_2n,
             g2_alpha_1_to_n,
             gt_alpha_nplus1,
-        };
-        Ok(params)
+        })
     }
 }
 
@@ -159,7 +185,7 @@ pub fn consistent(params: &VeccomParams) -> bool {
     // Generate N random scalars r_1, ..., r_N
     let mut rs_owned: Vec<FrRepr> = vec![];
     let mut rs: Vec<&[u64; 4]> = vec![];
-    for _ in 0..N {
+    for _ in 0..params.n {
         let r = random_scalar().into_repr();
         rs_owned.push(r);
     }
@@ -173,18 +199,27 @@ pub fn consistent(params: &VeccomParams) -> bool {
     // R_2 = prod_{i=1}^{N} ("g_2^{alpha^i}")^{r_i}
     // T = prod{i=1}^{N-1} ("g_1^{alpha^{i+1}}")^{r_i}
     // U = prod{i=1}^{N-1} ("g_1^{alpha^{i+N+1}")^{r_i}
-    let pt_s: bls12_381::G1Affine =
-        G1Affine::sum_of_products(&params.g1_alpha_1_to_n[0..N - 1], &rs[0..N - 1]).into_affine();
+    let pt_s: bls12_381::G1Affine = G1Affine::sum_of_products(
+        &params.g1_alpha_1_to_n[0..params.n - 1],
+        &rs[0..params.n - 1],
+    )
+    .into_affine();
     let pt_r1: bls12_381::G1Affine = {
-        let mut tmp = params.g1_alpha_1_to_n[N - 1].mul(Fr::from_repr(rs_owned[N - 1]).unwrap());
+        let mut tmp = params.g1_alpha_1_to_n[params.n - 1]
+            .mul(Fr::from_repr(rs_owned[params.n - 1]).unwrap());
         tmp.add_assign_mixed(&pt_s);
         tmp.into_affine()
     };
-    let pt_r2 = G2Affine::sum_of_products(&params.g2_alpha_1_to_n[0..N], &rs[0..N]).into_affine();
-    let pt_t =
-        G1Affine::sum_of_products(&params.g1_alpha_1_to_n[1..N], &rs[0..N - 1]).into_affine();
-    let pt_u = G1Affine::sum_of_products(&params.g1_alpha_nplus2_to_2n[0..N - 1], &rs[0..N - 1])
+    let pt_r2 = G2Affine::sum_of_products(&params.g2_alpha_1_to_n[0..params.n], &rs[0..params.n])
         .into_affine();
+    let pt_t =
+        G1Affine::sum_of_products(&params.g1_alpha_1_to_n[1..params.n], &rs[0..params.n - 1])
+            .into_affine();
+    let pt_u = G1Affine::sum_of_products(
+        &params.g1_alpha_nplus2_to_2n[0..params.n - 1],
+        &rs[0..params.n - 1],
+    )
+    .into_affine();
 
     let g1 = G1Affine::one();
     let g2 = G2Affine::one();
@@ -204,14 +239,14 @@ pub fn consistent(params: &VeccomParams) -> bool {
     }
 
     // 3: e(g_1^{alpha^N}, g_2^alpha) = "e(g_1, g_2)^{alpha^{N+1}}"
-    let mut tmp = params.g1_alpha_1_to_n[N - 1].pairing_with(g2alpha);
+    let mut tmp = params.g1_alpha_1_to_n[params.n - 1].pairing_with(g2alpha);
     tmp.sub_assign(&params.gt_alpha_nplus1);
     if !tmp.is_zero() {
         return false;
     }
 
     // 4: e(T, g_2^{alpha^N}) = e(U, g_2)
-    if pt_t.pairing_with(&params.g2_alpha_1_to_n[N - 1]) != pt_u.pairing_with(&g2) {
+    if pt_t.pairing_with(&params.g2_alpha_1_to_n[params.n - 1]) != pt_u.pairing_with(&g2) {
         return false;
     }
 
@@ -247,21 +282,23 @@ pub fn check_rerandomization(params: &VeccomParams, g1alpha_old: G1Affine, proof
         && consistent(params)
 }
 
-pub fn generate(alpha: Fr) -> VeccomParams {
-    let mut g1_alpha_1_to_n: [G1Affine; N] = [G1Affine::zero(); N];
-    let mut g1_alpha_nplus2_to_2n: [G1Affine; N - 1] = [G1Affine::zero(); N - 1];
-    let mut g2_alpha_1_to_n: [G2Affine; N] = [G2Affine::zero(); N];
+pub fn generate(alpha: Fr, ciphersuite: u8, n: usize) -> VeccomParams {
+    let mut g1_alpha_1_to_n: Vec<G1Affine> = vec![]; //[G1Affine; N] = [G1Affine::zero(); N];
+    let mut g1_alpha_nplus2_to_2n: Vec<G1Affine> = vec![]; //[G1Affine; N - 1] = [G1Affine::zero(); N - 1];
+    let mut g2_alpha_1_to_n: Vec<G2Affine> = vec![]; // [G2Affine; N] = [G2Affine::zero(); N];
 
     let mut scalar: Fr = alpha;
-    for i in 1..=N {
+    for _ in 1..=n {
         // scalar = alpha^i
 
         let mut pt1 = G1::one();
         pt1.mul_assign(scalar);
-        g1_alpha_1_to_n[i - 1] = pt1.into_affine();
+        g1_alpha_1_to_n.push(pt1.into_affine());
+        //        g1_alpha_1_to_n[i - 1] = pt1.into_affine();
         let mut pt2 = G2::one();
         pt2.mul_assign(scalar);
-        g2_alpha_1_to_n[i - 1] = pt2.into_affine();
+        g2_alpha_1_to_n.push(pt2.into_affine());
+        //        g2_alpha_1_to_n[i - 1] = pt2.into_affine();
 
         scalar.mul_assign(&alpha);
         // scalar = alpha^{i+1}
@@ -275,14 +312,17 @@ pub fn generate(alpha: Fr) -> VeccomParams {
     scalar.mul_assign(&alpha);
 
     // scalar = alpha^{N+2}
-    for i in 1..N {
+    for _ in 1..n {
         let mut pt1 = G1::one();
         pt1.mul_assign(scalar);
-        g1_alpha_nplus2_to_2n[i - 1] = pt1.into_affine();
+        g1_alpha_nplus2_to_2n.push(pt1.into_affine());
+        //        g1_alpha_nplus2_to_2n[i - 1] = pt1.into_affine();
         scalar.mul_assign(&alpha);
     }
 
     VeccomParams {
+        ciphersuite,
+        n,
         g1_alpha_1_to_n,
         g1_alpha_nplus2_to_2n,
         g2_alpha_1_to_n,
@@ -292,32 +332,38 @@ pub fn generate(alpha: Fr) -> VeccomParams {
 
 pub fn rerandomize<B: AsRef<[u8]>>(params: &VeccomParams, entropy: B) -> (VeccomParams, PoK) {
     let (alpha, _) = G1::keygen(&entropy);
-
-    let mut g1_alpha_1_to_n: [G1Affine; N] = [G1Affine::zero(); N];
-    let mut g1_alpha_nplus2_to_2n: [G1Affine; N - 1] = [G1Affine::zero(); N - 1];
-    let mut g2_alpha_1_to_n: [G2Affine; N] = [G2Affine::zero(); N];
+    let n = params.n;
+    let mut g1_alpha_1_to_n: Vec<G1Affine> = vec![]; //[G1Affine; N] = [G1Affine::zero(); N];
+    let mut g1_alpha_nplus2_to_2n: Vec<G1Affine> = vec![]; //[G1Affine; N - 1] = [G1Affine::zero(); N - 1];
+    let mut g2_alpha_1_to_n: Vec<G2Affine> = vec![]; //[G2Affine; N] = [G2Affine::zero(); N];
 
     let mut scalar: Fr = alpha;
-    for i in 1..=N {
+
+    for i in 1..=n {
         // scalar = alpha^i
-        g1_alpha_1_to_n[i - 1] = params.g1_alpha_1_to_n[i - 1].mul(scalar).into_affine();
-        g2_alpha_1_to_n[i - 1] = params.g2_alpha_1_to_n[i - 1].mul(scalar).into_affine();
+        g1_alpha_1_to_n.push(params.g1_alpha_1_to_n[i - 1].mul(scalar).into_affine());
+        g2_alpha_1_to_n.push(params.g2_alpha_1_to_n[i - 1].mul(scalar).into_affine());
         scalar.mul_assign(&alpha);
         // scalar = alpha^{i+1}
     }
     // scalar = alpha^{N+1}
-    let gt_alpha_nplus1 = g1_alpha_1_to_n[N - 1].pairing_with(&g2_alpha_1_to_n[0]);
+    let gt_alpha_nplus1 = g1_alpha_1_to_n[n - 1].pairing_with(&g2_alpha_1_to_n[0]);
     scalar.mul_assign(&alpha);
 
     // scalar = alpha^{N+2}
-    for i in 1..N {
-        g1_alpha_nplus2_to_2n[i - 1] = params.g1_alpha_nplus2_to_2n[i - 1]
-            .mul(scalar)
-            .into_affine();
+    for i in 1..n {
+        g1_alpha_nplus2_to_2n.push(
+            params.g1_alpha_nplus2_to_2n[i - 1]
+                .mul(scalar)
+                .into_affine(),
+        );
         scalar.mul_assign(&alpha);
     }
+
     (
         VeccomParams {
+            ciphersuite: params.ciphersuite,
+            n,
             g1_alpha_1_to_n,
             g1_alpha_nplus2_to_2n,
             g2_alpha_1_to_n,
