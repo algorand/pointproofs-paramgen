@@ -85,6 +85,13 @@ impl SerDes for VeccomParams {
         r.read_exact(&mut buf)?;
         let n = usize::from_le_bytes(buf);
 
+        if n > 65535 {
+            return Err(Error::new(
+                ErrorKind::Other,
+                "The size of n has passed the maximal allowed value.",
+            ));
+        }
+
         let mut g1_alpha_1_to_n: Vec<G1Affine> = vec![];
         let mut g1_alpha_nplus2_to_2n: Vec<G1Affine> = vec![];
         let mut g2_alpha_1_to_n: Vec<G2Affine> = vec![];
