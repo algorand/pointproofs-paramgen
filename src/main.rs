@@ -88,7 +88,7 @@ fn main() {
             println!("Sanity-checking proof we just created...");
             println!(
                 "{}",
-                check_rerandomization(&params_out, params_in.g1_alpha_1_to_n[0], &proof)
+                check_rerandomization(&params_out, params_in.g2_alpha_1_to_n[0], &proof)
             );
 
             println!("Serializing params and proof to {}", &args[3]);
@@ -113,7 +113,7 @@ fn main() {
             let proof = PoK::deserialize(&mut f, true).unwrap();
 
             println!("Verifying...");
-            if check_rerandomization(&params_new, params_old.g1_alpha_1_to_n[0], &proof) {
+            if check_rerandomization(&params_new, params_old.g2_alpha_1_to_n[0], &proof) {
                 println!("Success!");
             } else {
                 println!("FAILURE: Parameters or proof incorrect");

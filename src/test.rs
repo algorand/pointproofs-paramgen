@@ -38,7 +38,7 @@ fn test_functions() {
     println!("finish rerandomize");
     // check the proof
     assert!(
-        crate::check_rerandomization(&update_param, init_param.g1_alpha_1_to_n[0], &proof),
+        crate::check_rerandomization(&update_param, init_param.g2_alpha_1_to_n[0], &proof),
         "re-randomization failed"
     );
 }
