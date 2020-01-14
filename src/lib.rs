@@ -5,6 +5,7 @@ use pairing_plus::hash_to_field::FromRO;
 use pairing_plus::serdes::SerDes;
 use pairing_plus::Engine;
 use pairing_plus::{CurveAffine, CurveProjective};
+use crate::schnorr::{PoK, make_pok, verify_pok};
 
 use std::io::{Error, ErrorKind, Read, Result, Write};
 
@@ -18,10 +19,11 @@ use rand::RngCore;
 
 extern crate bls_sigs_ref as bls;
 use bls::BLSSigCore;
-use bls::BLSSignaturePop;
 
 #[cfg(test)]
 mod test;
+
+pub mod schnorr;
 
 //const N: usize = 1024;
 
@@ -120,37 +122,6 @@ impl SerDes for VeccomParams {
             g1_alpha_1_to_n,
             gt_alpha_nplus1,
         })
-    }
-}
-
-// Proof of knowledge of exponent
-pub struct PoK {
-    g1beta: G1Affine, // g1^beta (where we're proving knowledge of beta)
-    pop: G2Affine,    // HashToG2(g1beta)^beta
-}
-
-impl SerDes for PoK {
-    fn deserialize<R: Read>(r: &mut R, compressed: bool) -> Result<Self> {
-        if !compressed {
-            return Err(Error::new(
-                ErrorKind::Other,
-                "PoK can only be (de)serialized with compressed=true",
-            ));
-        }
-        let g1beta = G1Affine::deserialize(r, true)?;
-        let pop = G2Affine::deserialize(r, true)?;
-        Ok(PoK { g1beta, pop })
-    }
-    fn serialize<W: Write>(&self, w: &mut W, compressed: bool) -> Result<()> {
-        if !compressed {
-            return Err(Error::new(
-                ErrorKind::Other,
-                "PoK can only be (de)serialized with compressed=true",
-            ));
-        }
-        self.g1beta.serialize(w, true)?;
-        self.pop.serialize(w, true)?;
-        Ok(())
     }
 }
 
@@ -260,22 +231,6 @@ pub fn consistent(params: &VeccomParams) -> bool {
     true
 }
 
-pub fn makepok<B: AsRef<[u8]>>(sk: B) -> PoK {
-    let (_beta, g1beta) = <G2 as BLSSigCore>::keygen(&sk);
-    let h = G2::pop_prove(sk);
-    PoK {
-        g1beta: g1beta.into_affine(),
-        pop: h.into_affine(),
-    }
-}
-
-pub fn checkpok(pok: &PoK) -> bool {
-    if pok.pop.is_zero() || pok.g1beta.is_zero() {
-        return false;
-    }
-    <G2 as BLSSignaturePop>::pop_verify(pok.g1beta.into_projective(), pok.pop.into_projective())
-}
-
 pub fn check_rerandomization(params: &VeccomParams, g2alpha_old: G2Affine, proof: &PoK) -> bool {
     let g1inv = {
         let mut g = G1Affine::one();
@@ -283,8 +238,8 @@ pub fn check_rerandomization(params: &VeccomParams, g2alpha_old: G2Affine, proof
         g
     };
 
-    checkpok(&proof)
-        && (Bls12::pairing_product(proof.g1beta, g2alpha_old, g1inv, params.g2_alpha_1_to_n[0])
+    verify_pok(&proof, b"hardcoded id for now")
+        && (Bls12::pairing_product(proof.g1x, g2alpha_old, g1inv, params.g2_alpha_1_to_n[0])
             == Fq12::one())
         && consistent(params)
 }
@@ -376,6 +331,6 @@ pub fn rerandomize<B: AsRef<[u8]>>(params: &VeccomParams, entropy: B) -> (Veccom
             g1_alpha_1_to_n,
             gt_alpha_nplus1,
         },
-        makepok(entropy),
+        make_pok(alpha, b"hardcoded id for now"),
     )
 }

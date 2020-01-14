@@ -1,8 +1,12 @@
-use ff::PrimeField;
+use ff::{Field,PrimeField};
 use pairing_plus::bls12_381::*;
 use pairing_plus::serdes::SerDes;
+use pairing_plus::{CurveAffine, CurveProjective};
 use rand::rngs::OsRng;
 use rand::RngCore;
+
+use crate::random_scalar;
+use crate::schnorr::{make_pok, verify_pok};
 // #[test]
 // fn test_read_param() {
 //     let mut f = std::fs::File::open("first.param").unwrap();
@@ -41,4 +45,18 @@ fn test_functions() {
         crate::check_rerandomization(&update_param, init_param.g2_alpha_1_to_n[0], &proof),
         "re-randomization failed"
     );
+}
+
+#[test]
+fn test_schnorr_basic() {
+	let id = b"id string";
+	let x = random_scalar();
+	let p : G1Affine = G1Affine::one().mul(x).into_affine();
+	let mut proof = make_pok(x, id);
+	let mut ok = verify_pok(&proof, id);
+	assert!(ok, "failed to verify a pok we made");
+	//proof.s.negate();
+	ok = verify_pok(&proof, b"bad id string");
+	assert!(!ok, "pok verified with bad id string");
+	// TODO: more tests
 }

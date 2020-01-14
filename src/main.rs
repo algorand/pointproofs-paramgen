@@ -110,7 +110,7 @@ fn main() {
             println!("Loading new params (with proof) from {}", &args[3]);
             let mut f = File::open(&args[3]).unwrap();
             let params_new = VeccomParams::deserialize(&mut f, true).unwrap();
-            let proof = PoK::deserialize(&mut f, true).unwrap();
+            let proof = schnorr::PoK::deserialize(&mut f, true).unwrap();
 
             println!("Verifying...");
             if check_rerandomization(&params_new, params_old.g2_alpha_1_to_n[0], &proof) {
