@@ -6,6 +6,9 @@ use pairing_plus::serdes::SerDes;
 extern crate ff;
 use ff::{Field};
 
+extern crate zeroize;
+use zeroize::Zeroize;
+
 use std::convert::TryInto;
 
 use crate::random_scalar;
@@ -32,10 +35,9 @@ pub fn make_pok(x : Fr, id : &[u8]) -> PoK {
 	// hash_input = "DomainSep" || a_bytes || p_bytes || len_id || id
 	// e = hash_to_scalar(hash_input)
 	// s = k - e * x (as Fr elements)
-	// s_bytes = encode(s)
 	// output p, a, s
 	let p : G1Affine = G1Affine::one().mul(x).into_affine();
-	let k : Fr = random_scalar(); // TODO: should this be deterministic?
+	let mut k : Fr = random_scalar(); // mutable so we can zeroize later
 	let a : G1Affine = G1Affine::one().mul(k).into_affine();
 	let mut hash_input : Vec<u8> = vec![];
 	hash_input.extend_from_slice(b"DomainSep"); // TODO: replace with actual domain separation prefix
@@ -52,6 +54,7 @@ pub fn make_pok(x : Fr, id : &[u8]) -> PoK {
 		s.add_assign(&k);
 		s
 	};
+	k.zeroize();
 	PoK{g1x: p, a: a, s: s}
 }
 

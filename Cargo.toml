@@ -9,7 +9,9 @@ edition = "2018"
 [dependencies]
 pairing-plus = { git = "https://github.com/algorand/pairing-plus", branch = "master" }
 #pairing-plus = "0.17.1"
-ff = "0.4"
+#ff = "0.4"
+ff = {git = "https://github.com/algorand/ff"}
 rand = "0.7"
 bls_sigs_ref = { git = "https://github.com/algorand/bls_sigs_ref", branch = "master" }
 atoi = "0.3.2"
+zeroize = "1.1.0"
