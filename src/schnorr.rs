@@ -1,10 +1,10 @@
-use pairing_plus::{CurveAffine, CurveProjective, EncodedPoint};
+use pairing_plus::{CurveAffine, CurveProjective, SubgroupCheck};
 use pairing_plus::hash_to_field::HashToField;
-use pairing_plus::bls12_381::{G1, G1Affine, G1Compressed, Fr, FrRepr};
+use pairing_plus::bls12_381::{G1, G1Affine, Fr};
 use pairing_plus::serdes::SerDes;
 
 extern crate ff;
-use ff::{Field, PrimeField, PrimeFieldRepr};
+use ff::{Field};
 
 use std::convert::TryInto;
 
@@ -14,7 +14,7 @@ use std::io::{Error, ErrorKind, Read, Result, Write};
 
 pub struct PoK {
 	pub g1x : G1Affine, // g_1^x, where we're proving knowledge of x
-	a : G1Compressed,
+	a : G1Affine,
 	s : Fr,
 }
 
@@ -24,25 +24,23 @@ pub struct PoK {
 // NOT constant time!
 pub fn make_pok(x : Fr, id : &[u8]) -> PoK {
 	// p = g_1^x
-	// p_bytes = encode(p)
 	// k <- uniform scalar
 	// a = g_1^k
-	// a_bytes = encode(a)
 	// len_id = len(id) as 8 byte big-endian
+	// a_bytes = encode(a)
+	// p_bytes = encode(p)
 	// hash_input = "DomainSep" || a_bytes || p_bytes || len_id || id
 	// e = hash_to_scalar(hash_input)
 	// s = k - e * x (as Fr elements)
 	// s_bytes = encode(s)
-	// output a_bytes || s_bytes
+	// output p, a, s
 	let p : G1Affine = G1Affine::one().mul(x).into_affine();
-	let p_bytes : G1Compressed = p.into_compressed();
 	let k : Fr = random_scalar(); // TODO: should this be deterministic?
-	let a : G1Compressed = G1Affine::one().mul(k).into_affine().into_compressed();
-	let a_bytes : &[u8] = a.as_ref();
+	let a : G1Affine = G1Affine::one().mul(k).into_affine();
 	let mut hash_input : Vec<u8> = vec![];
 	hash_input.extend_from_slice(b"DomainSep"); // TODO: replace with actual domain separation prefix
-	hash_input.extend_from_slice(&a_bytes);
-	hash_input.extend_from_slice(p_bytes.as_ref());
+	a.serialize(&mut hash_input, true).unwrap();
+	p.serialize(&mut hash_input, true).unwrap();
 	let len_id : u64 = id.len().try_into().unwrap();
 	hash_input.extend_from_slice(&len_id.to_be_bytes());
 	hash_input.extend_from_slice(id);
@@ -57,30 +55,28 @@ pub fn make_pok(x : Fr, id : &[u8]) -> PoK {
 	PoK{g1x: p, a: a, s: s}
 }
 
+// Verify a Schnorr proof-of-knowledge.
+// For safety, this function checks that the points are valid group elements.
 pub fn verify_pok(pok : &PoK, id : &[u8]) -> bool {
-	// decode compressed G1 elts P and A and scalar S from PoK, reject on error
-	// (assume p has already been checked to be in the subgroup)
-	// (decompression ensures on curve and in subgroup)
-	// a_bytes = encode(a) // re-encode
-	// p_bytes = encode(p) // re-encode
+	// check p and a are in supgroup
+	// a_bytes = encode(a)
+	// p_bytes = encode(p)
 	// len_id = len(id) as 8 byte big-endian
 	// hash_input = "DomainSep" || a_bytes || p_bytes || len_id || id
 	// e = hash_to_scalar(hash_input)
 	// b = g_1^s * p^e
 	// check b == a
-	let a = match pok.a.into_affine() {
-		Ok(pt) => pt,
-		Err(_) => return false,
-	};
+	let a = pok.a;
 	let p = pok.g1x;
+	if !(a.in_subgroup() && p.in_subgroup()) {
+		return false;
+	}
 	let s = pok.s;
-	let a_bytes : G1Compressed = G1Compressed::from_affine(a);
-	let p_bytes : G1Compressed = G1Compressed::from_affine(p);
 
 	let mut hash_input : Vec<u8> = vec![];
 	hash_input.extend_from_slice(b"DomainSep"); // TODO: replace with actual domain separation prefix
-	hash_input.extend_from_slice(&a_bytes.as_ref());
-	hash_input.extend_from_slice(&p_bytes.as_ref());
+	a.serialize(&mut hash_input, true).unwrap();
+	p.serialize(&mut hash_input, true).unwrap();
 	let len_id : u64 = id.len().try_into().unwrap();
 	hash_input.extend_from_slice(&len_id.to_be_bytes());
 	hash_input.extend_from_slice(id);
@@ -104,8 +100,7 @@ impl SerDes for PoK {
             ));
         }
 	let g1x = G1Affine::deserialize(r, true)?;
-	let mut a = G1Compressed::empty();
-	r.read_exact(a.as_mut())?;
+	let a = G1Affine::deserialize(r, true)?;
 	let s : Fr = Fr::deserialize(r, true)?;
         Ok(PoK{g1x, a, s})
     }
@@ -117,9 +112,8 @@ impl SerDes for PoK {
             ));
         }
         self.g1x.serialize(w, true)?;
-        //self.a.serialize(w, true)?;
-	w.write_all(self.a.as_ref())?;
-	self.s.into_repr().write_be(w)?;
+        self.a.serialize(w, true)?;
+	self.s.serialize(w, true)?;
         Ok(())
     }
 }
