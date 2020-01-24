@@ -1,4 +1,4 @@
-use ff::{Field,PrimeField};
+use ff::PrimeField;
 use pairing_plus::bls12_381::*;
 use pairing_plus::serdes::SerDes;
 use pairing_plus::{CurveAffine, CurveProjective};
@@ -49,14 +49,14 @@ fn test_functions() {
 
 #[test]
 fn test_schnorr_basic() {
-	let id = b"id string";
-	let x = random_scalar();
-	let p : G1Affine = G1Affine::one().mul(x).into_affine();
-	let mut proof = make_pok(x, id);
-	let mut ok = verify_pok(&proof, id);
-	assert!(ok, "failed to verify a pok we made");
-	//proof.s.negate();
-	ok = verify_pok(&proof, b"bad id string");
-	assert!(!ok, "pok verified with bad id string");
-	// TODO: more tests
+    let id = b"id string";
+    let x = random_scalar();
+    let _p: G1Affine = G1Affine::one().mul(x).into_affine();
+    let proof = make_pok(x, id);
+    let mut ok = verify_pok(&proof, id);
+    assert!(ok, "failed to verify a pok we made");
+    //proof.s.negate();
+    ok = verify_pok(&proof, b"bad id string");
+    assert!(!ok, "pok verified with bad id string");
+    // TODO: more tests
 }

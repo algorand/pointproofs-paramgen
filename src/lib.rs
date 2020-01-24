@@ -1,11 +1,13 @@
+#![cfg_attr(feature = "cargo-clippy", allow(clippy::many_single_char_names))]
+
 extern crate pairing_plus as pairing_plus;
+use crate::schnorr::{make_pok, verify_pok, PoK};
 use pairing_plus::bls12_381;
-use pairing_plus::bls12_381::{Bls12, Fq12, Fr, FrRepr, G2Affine, G1Affine, G2, G1};
+use pairing_plus::bls12_381::{Bls12, Fq12, Fr, FrRepr, G1Affine, G2Affine, G1, G2};
 use pairing_plus::hash_to_field::FromRO;
 use pairing_plus::serdes::SerDes;
 use pairing_plus::Engine;
 use pairing_plus::{CurveAffine, CurveProjective};
-use crate::schnorr::{PoK, make_pok, verify_pok};
 
 use std::io::{Error, ErrorKind, Read, Result, Write};
 
@@ -19,6 +21,9 @@ use rand::RngCore;
 
 extern crate bls_sigs_ref as bls;
 use bls::BLSSigCore;
+
+extern crate zeroize;
+use zeroize::Zeroize;
 
 #[cfg(test)]
 mod test;
@@ -129,7 +134,9 @@ fn random_scalar() -> Fr {
     let mut r: [u8; 64] = [0; 64];
     OsRng {}.fill_bytes(&mut r[..]);
     // For convenience, just using already-implemented hash-to-field
-    Fr::from_ro(r.as_ref(), 0)
+    let res = Fr::from_ro(r.as_ref(), 0);
+    r.zeroize();
+    res
 }
 
 // Checks that a set of parameters are in the correct form (g2^alpha, g2^alpha^2, etc.) for some alpha
