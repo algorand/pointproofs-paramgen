@@ -38,11 +38,11 @@ fn test_functions() {
     let mut r: [u8; 64] = [0; 64];
     OsRng {}.fill_bytes(&mut r[..]);
 
-    let (update_param, proof) = crate::rerandomize(&init_param, &r[..]);
+    let (update_param, proof) = crate::rerandomize(&init_param, &r[..], b"hardcoded id string");
     println!("finish rerandomize");
     // check the proof
     assert!(
-        crate::check_rerandomization(&update_param, init_param.g2_alpha_1_to_n[0], &proof),
+        crate::check_rerandomization(&update_param, init_param.g2_alpha_1_to_n[0], &proof, b"hardcoded id string"),
         "re-randomization failed"
     );
 }

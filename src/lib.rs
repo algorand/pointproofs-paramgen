@@ -238,14 +238,14 @@ pub fn consistent(params: &VeccomParams) -> bool {
     true
 }
 
-pub fn check_rerandomization(params: &VeccomParams, g2alpha_old: G2Affine, proof: &PoK) -> bool {
+pub fn check_rerandomization(params: &VeccomParams, g2alpha_old: G2Affine, proof: &PoK, id: &[u8]) -> bool {
     let g1inv = {
         let mut g = G1Affine::one();
         g.negate();
         g
     };
 
-    verify_pok(&proof, b"hardcoded id for now")
+    verify_pok(&proof, id)
         && (Bls12::pairing_product(proof.g1x, g2alpha_old, g1inv, params.g2_alpha_1_to_n[0])
             == Fq12::one())
         && consistent(params)
@@ -299,7 +299,7 @@ pub fn generate(alpha: Fr, ciphersuite: u8, n: usize) -> VeccomParams {
     }
 }
 
-pub fn rerandomize<B: AsRef<[u8]>>(params: &VeccomParams, entropy: B) -> (VeccomParams, PoK) {
+pub fn rerandomize<B: AsRef<[u8]>>(params: &VeccomParams, entropy: B, id: &[u8]) -> (VeccomParams, PoK) {
     let (alpha, _) = G2::keygen(&entropy);
     let n = params.n;
     let mut g2_alpha_1_to_n: Vec<G2Affine> = vec![]; //[G2Affine; N] = [G2Affine::zero(); N];
@@ -338,6 +338,6 @@ pub fn rerandomize<B: AsRef<[u8]>>(params: &VeccomParams, entropy: B) -> (Veccom
             g1_alpha_1_to_n,
             gt_alpha_nplus1,
         },
-        make_pok(alpha, b"hardcoded id for now"),
+        make_pok(alpha, id),
     )
 }

@@ -17,8 +17,8 @@ use std::io::{Error, ErrorKind, Read, Result, Write};
 
 pub struct PoK {
     pub(crate) g1x: G1Affine, // g_1^x, where we're proving knowledge of x
-    a: G1Affine,
-    s: Fr,
+    pub(crate) a: G1Affine,
+    pub(crate) s: Fr,
 }
 
 // Make a schnorr proof-of-knowledge of a scalar x.
@@ -43,7 +43,7 @@ pub fn make_pok(x: Fr, id: &[u8]) -> PoK {
     hash_input.extend_from_slice(b"DomainSep"); // TODO: replace with actual domain separation prefix
     a.serialize(&mut hash_input, true).unwrap();
     p.serialize(&mut hash_input, true).unwrap();
-    let len_id: u64 = id.len().try_into().unwrap();
+    let len_id: u64 = id.len().try_into().unwrap(); // This unwrap would only fail if id were more than 2^64 bytes long, which it seems safe to assume is not the case
     hash_input.extend_from_slice(&len_id.to_be_bytes());
     hash_input.extend_from_slice(id);
     let e: Fr = HashToField::new(&hash_input, None).with_ctr(0);
