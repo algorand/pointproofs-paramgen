@@ -4,7 +4,7 @@ extern crate pairing_plus as pairing_plus;
 use crate::schnorr::{make_pok, verify_pok, PoK};
 use pairing_plus::bls12_381;
 use pairing_plus::bls12_381::{Bls12, Fq12, Fr, FrRepr, G1Affine, G2Affine, G1, G2};
-use pairing_plus::hash_to_field::FromRO;
+use pairing_plus::hash_to_field::{HashToField,FromRO};
 use pairing_plus::serdes::SerDes;
 use pairing_plus::Engine;
 use pairing_plus::{CurveAffine, CurveProjective};
@@ -19,8 +19,7 @@ extern crate rand;
 use rand::rngs::OsRng;
 use rand::RngCore;
 
-extern crate bls_sigs_ref as bls;
-use bls::BLSSigCore;
+use std::convert::TryInto;
 
 extern crate zeroize;
 use zeroize::Zeroize;
@@ -300,7 +299,18 @@ pub fn generate(alpha: Fr, ciphersuite: u8, n: usize) -> VeccomParams {
 }
 
 pub fn rerandomize<B: AsRef<[u8]>>(params: &VeccomParams, entropy: B, id: &[u8]) -> (VeccomParams, PoK) {
-    let (alpha, _) = G2::keygen(&entropy);
+    // alpha = HashToScalar("Rerandomize" || len(entropy) as 8-byte big-endian || entropy)
+    let alpha : Fr = {
+	    let mut hash_input : Vec<u8> = vec![];
+	    hash_input.extend_from_slice(b"Rerandomize"); // domain separation
+	    let len_entropy: u64 = id.len().try_into().unwrap(); // This unwrap would only fail if entropy were more than 2^64 bytes long
+	    hash_input.extend_from_slice(&len_entropy.to_be_bytes());
+	    hash_input.extend_from_slice(&entropy.as_ref());
+        let alpha: Fr = HashToField::new(&hash_input, None).with_ctr(0);
+        hash_input.zeroize();
+        alpha
+    };
+
     let n = params.n;
     let mut g2_alpha_1_to_n: Vec<G2Affine> = vec![]; //[G2Affine; N] = [G2Affine::zero(); N];
     let mut g2_alpha_nplus2_to_2n: Vec<G2Affine> = vec![]; //[G2Affine; N - 1] = [G2Affine::zero(); N - 1];

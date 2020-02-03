@@ -33,17 +33,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bls_sigs_ref"
-version = "0.1.0"
-source = "git+https://github.com/algorand/bls_sigs_ref#6e3c93f1bb6789153fdcde289fa50f54a01cf67d"
-dependencies = [
- "ff 0.5.1 (git+https://github.com/algorand/ff)",
- "hkdf 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "pairing-plus 0.17.1 (git+https://github.com/algorand/pairing-plus)",
- "sha2 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "byte-tools"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -356,7 +345,6 @@ name = "veccom-paramgen"
 version = "0.1.0"
 dependencies = [
  "atoi 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "bls_sigs_ref 0.1.0 (git+https://github.com/algorand/bls_sigs_ref)",
  "ff 0.5.1 (git+https://github.com/algorand/ff)",
  "pairing-plus 0.17.1 (git+https://github.com/algorand/pairing-plus)",
  "rand 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -411,7 +399,6 @@ dependencies = [
 "checksum autocfg 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f8aac770f1885fd7e387acedd76065302551364496e46b3dd00860b2f8359b9d"
 "checksum block-buffer 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)" = "c0940dc441f31689269e10ac70eb1002a3a1d3ad1390e030043662eb7fe4688b"
 "checksum block-padding 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "fa79dedbb091f449f1f39e53edf88d5dbe95f895dae6135a8d7b881fb5af73f5"
-"checksum bls_sigs_ref 0.1.0 (git+https://github.com/algorand/bls_sigs_ref)" = "<none>"
 "checksum byte-tools 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e3b5ca7a04898ad4bcd41c90c5285445ff5b791899bb1b0abdd2a2aa791211d7"
 "checksum byteorder 1.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a7c3dd8985a7111efc5c80b44e23ecdd8c007de8ade3b96595387e812b957cf5"
 "checksum c2-chacha 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "214238caa1bf3a496ec3392968969cab8549f96ff30652c9e56885329315f6bb"

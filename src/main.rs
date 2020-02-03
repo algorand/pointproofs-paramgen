@@ -19,14 +19,18 @@ use veccom_paramgen::*;
 extern crate atoi;
 use atoi::atoi;
 
+use zeroize::Zeroize;
+
 fn usage(progname: &str) {
     eprintln!("Usage:
-	{0} generate /tmp/params.out ciphersuite_ID parameter_n
+	{0} init /tmp/params.out ciphersuite_ID parameter_n
 		Generates starting parameters with alpha = 2
 	{0} evolve id_string /tmp/params.in /tmp/params.out
 		Reads old params from /tmp/params.in, rerandomizes them and writes them (with a proof of knowledge of the mixed-in exponent) to /tmp/params.out, using id_string as your identity
 	{0} verify id_string /tmp/params.old /tmp/params.new
 		Given assumed-good old params and a newly rerandomized version (with a proof of knowledge of the mixed-in exponent), verify that the new parameters were rerandomized correctly (i.e., check that the parameters are self-consistent and that the proof is correct for the given prover identity).
+	{0} finalize beacon_value /tmp/params.in /tmp/params.final
+		Given assumed-good params in /tmp/params.in and the value of the shared random beacon, output the final set of parameters.
 ", progname);
 }
 
@@ -38,7 +42,7 @@ fn main() {
         return;
     }
     match args[1].as_str() {
-        "generate" => {
+        "init" => {
             // parse ciphersuite ID, which is only one byte
             if args[3].len() > 1 {
                 usage(&args[0]);
@@ -70,7 +74,7 @@ fn main() {
                 usage(&args[0]);
                 return;
             }
-	    let id = args[2].as_bytes();
+            let id = args[2].as_bytes();
             println!("Loading params...");
             let mut f = File::open(&args[3]).unwrap();
             let params_in = VeccomParams::deserialize(&mut f, true).unwrap();
@@ -86,6 +90,7 @@ fn main() {
             let mut r: [u8; 64] = [0; 64];
             OsRng {}.fill_bytes(&mut r[..]);
             let (params_out, proof) = rerandomize(&params_in, &r[..], &id);
+            r.zeroize();
             println!("Sanity-checking proof we just created...");
             println!(
                 "{}",
@@ -103,7 +108,7 @@ fn main() {
                 usage(&args[0]);
                 return;
             }
-	    let id = args[2].as_bytes();
+            let id = args[2].as_bytes();
             println!("Loading old (assumed-good) params from {}", &args[3]);
             let params_old = {
                 let mut f = File::open(&args[3]).unwrap();
@@ -121,6 +126,24 @@ fn main() {
                 println!("FAILURE: Parameters or proof incorrect");
                 println!("consistent: {}", consistent(&params_new));
             }
+        }
+        "finalize" => {
+            if args.len() < 5 {
+                usage(&args[0]);
+                return;
+            }
+            let beacon = args[2].as_bytes();
+            println!("Loading params...");
+            let mut f = File::open(&args[3]).unwrap();
+            let params_in = VeccomParams::deserialize(&mut f, true).unwrap();
+            println!("Loaded.");
+            println!("Computing final parameters...");
+            let (params_out, _) = rerandomize(&params_in, &beacon, b""); // Since the beacon value is public, we don't care about the schnorr proof, so we don't care about id_string here
+            println!("Computed.");
+            println!("Serializing final params to {}", &args[4]);
+            let mut f = File::create(&args[4]).unwrap();
+            params_out.serialize(&mut f, true).unwrap();
+            println!("Done!");
         }
         _ => {
             usage(&args[0]);
