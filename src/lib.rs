@@ -4,7 +4,7 @@ extern crate pairing_plus as pairing_plus;
 use crate::schnorr::{make_pok, verify_pok, PoK};
 use pairing_plus::bls12_381;
 use pairing_plus::bls12_381::{Bls12, Fq12, Fr, FrRepr, G1Affine, G2Affine, G1, G2};
-use pairing_plus::hash_to_field::{HashToField,FromRO};
+use pairing_plus::hash_to_field::{FromRO, HashToField};
 use pairing_plus::serdes::SerDes;
 use pairing_plus::Engine;
 use pairing_plus::{CurveAffine, CurveProjective};
@@ -265,7 +265,12 @@ pub fn consistent(params: &VeccomParams) -> bool {
     true
 }
 
-pub fn check_rerandomization(params: &VeccomParams, g2alpha_old: G2Affine, proof: &PoK, id: &[u8]) -> bool {
+pub fn check_rerandomization(
+    params: &VeccomParams,
+    g2alpha_old: G2Affine,
+    proof: &PoK,
+    id: &[u8],
+) -> bool {
     let g1inv = {
         let mut g = G1Affine::one();
         g.negate();
@@ -334,10 +339,14 @@ pub fn generate(alpha: Fr, ciphersuite: u8, n: usize) -> VeccomParams {
     }
 }
 
-pub fn rerandomize<B: AsRef<[u8]>>(params: &VeccomParams, entropy: B, id: &[u8]) -> (VeccomParams, PoK) {
+pub fn rerandomize<B: AsRef<[u8]>>(
+    params: &VeccomParams,
+    entropy: B,
+    id: &[u8],
+) -> (VeccomParams, PoK) {
     // alpha = HashToScalar("Rerandomize" || len(entropy) as 8-byte big-endian || entropy)
-    let alpha : Fr = {
-        let mut hash_input : Vec<u8> = vec![];
+    let alpha: Fr = {
+        let mut hash_input: Vec<u8> = vec![];
         hash_input.extend_from_slice(b"Rerandomize"); // domain separation
         let len_entropy: u64 = id.len().try_into().unwrap(); // This unwrap would only fail if entropy were more than 2^64 bytes long
         hash_input.extend_from_slice(&len_entropy.to_be_bytes());

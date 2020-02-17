@@ -42,7 +42,12 @@ fn test_functions() {
     println!("finish rerandomize");
     // check the proof
     assert!(
-        crate::check_rerandomization(&update_param, init_param.g2_alpha_1_to_n[0], &proof, b"hardcoded id string"),
+        crate::check_rerandomization(
+            &update_param,
+            init_param.g2_alpha_1_to_n[0],
+            &proof,
+            b"hardcoded id string"
+        ),
         "re-randomization failed"
     );
 }
