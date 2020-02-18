@@ -23,7 +23,7 @@ use zeroize::Zeroize;
 
 fn usage(progname: &str) {
     eprintln!("Usage:
-	{0} init /tmp/params.out ciphersuite_ID parameter_n
+	{0} init /tmp/params.out parameter_n
 		Generates starting parameters with alpha = 2
 	{0} evolve id_string /tmp/params.in /tmp/params.out
 		Reads old params from /tmp/params.in, rerandomizes them and writes them (with a proof of knowledge of the mixed-in exponent) to /tmp/params.out, using id_string as your identity
@@ -37,21 +37,14 @@ fn usage(progname: &str) {
 fn main() {
     // let n = 1024;
     let args: Vec<String> = std::env::args().collect();
-    if args.len() < 5 {
+    if args.len() < 4 {
         usage(&args[0]);
         return;
     }
     match args[1].as_str() {
         "init" => {
-            // parse ciphersuite ID, which is only one byte
-            if args[3].len() > 1 {
-                usage(&args[0]);
-                return;
-            }
-            let ciphersuite = args[3].as_bytes()[0];
-
             // parse the parameter n, a usize
-            let n = match atoi::<usize>(args[4].as_bytes()) {
+            let n = match atoi::<usize>(args[3].as_bytes()) {
                 Some(p) => p,
                 None => {
                     usage(&args[0]);
@@ -63,7 +56,6 @@ fn main() {
             println!("Generating...");
             let params = generate(
                 Fr::from_repr(bls12_381::FrRepr::from(2)).unwrap(),
-                ciphersuite,
                 n,
             );
             println!("Generated.");

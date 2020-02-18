@@ -33,9 +33,6 @@ pub mod schnorr;
 
 #[derive(Debug, PartialEq)]
 pub struct VeccomParams {
-    /// ciphersuite id
-    pub ciphersuite: u8,
-
     /// parameter N
     pub n: usize,
 
@@ -63,7 +60,6 @@ impl SerDes for VeccomParams {
                 "veccom params can only be (de)serialized with compressed=true",
             ));
         }
-        w.write_all(&[self.ciphersuite])?;
         w.write_all(&self.n.to_le_bytes())?;
         for pt in &self.g1_alpha_1_to_n {
             pt.serialize(w, true)?;
@@ -87,10 +83,6 @@ impl SerDes for VeccomParams {
                 "veccom params can only be (de)serialized with compressed=true",
             ));
         }
-
-        // read ciphersuite
-        let mut ciphersuite = [0u8; 1];
-        r.read_exact(&mut ciphersuite)?;
 
         // read parameter n
         let mut buf = [0u8; 8];
@@ -130,7 +122,6 @@ impl SerDes for VeccomParams {
         gt_alpha_nplus1 = Fq12::deserialize(r, true)?;
 
         Ok(VeccomParams {
-            ciphersuite: ciphersuite[0],
             n,
             g1_alpha_1_to_n,
             g1_alpha_nplus2_to_2n,
@@ -283,7 +274,7 @@ pub fn check_rerandomization(
         && consistent(params)
 }
 
-pub fn generate(alpha: Fr, ciphersuite: u8, n: usize) -> VeccomParams {
+pub fn generate(alpha: Fr, n: usize) -> VeccomParams {
     let mut g1_alpha_1_to_n: Vec<G1Affine> = vec![]; // [G1Affine; N] = [G1Affine::zero(); N];
     let mut g1_alpha_nplus2_to_2n: Vec<G1Affine> = vec![]; //[G1Affine; N - 1] = [G2Affine::zero(); N - 1];
     let mut g2_alpha_1_to_n: Vec<G2Affine> = vec![]; //[G2Affine; N] = [G2Affine::zero(); N];
@@ -329,7 +320,6 @@ pub fn generate(alpha: Fr, ciphersuite: u8, n: usize) -> VeccomParams {
     }
 
     VeccomParams {
-        ciphersuite,
         n,
         g1_alpha_1_to_n,
         g1_alpha_nplus2_to_2n,
@@ -392,7 +382,6 @@ pub fn rerandomize<B: AsRef<[u8]>>(
 
     (
         VeccomParams {
-            ciphersuite: params.ciphersuite,
             n,
             g1_alpha_1_to_n,
             g1_alpha_nplus2_to_2n,

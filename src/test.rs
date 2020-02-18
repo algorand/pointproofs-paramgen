@@ -17,7 +17,7 @@ use crate::schnorr::{make_pok, verify_pok};
 #[test]
 fn test_param() {
     let alpha = Fr::from_repr(FrRepr([5, 0, 0, 0])).unwrap();
-    let t = crate::generate(alpha, 0, 1024);
+    let t = crate::generate(alpha, 1024);
 
     let mut f = std::fs::File::create("3.param").unwrap();
     t.serialize(&mut f, true).unwrap();
@@ -32,7 +32,7 @@ fn test_param() {
 fn test_functions() {
     // generate an initial parameter set
     let alpha = Fr::from_repr(FrRepr([5, 0, 0, 0])).unwrap();
-    let init_param = crate::generate(alpha, 0, 1024);
+    let init_param = crate::generate(alpha, 1024);
 
     // re-randomize the initial parameter set
     let mut r: [u8; 64] = [0; 64];
