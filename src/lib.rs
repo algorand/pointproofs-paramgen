@@ -60,7 +60,13 @@ impl SerDes for VeccomParams {
                 "veccom params can only be (de)serialized with compressed=true",
             ));
         }
-        w.write_all(&self.n.to_le_bytes())?;
+        if self.n > (u32::max_value() as usize) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Invalid n",
+            ));
+        }
+        w.write_all(&(self.n as u32).to_le_bytes())?;
         for pt in &self.g1_alpha_1_to_n {
             pt.serialize(w, true)?;
         }
@@ -85,11 +91,11 @@ impl SerDes for VeccomParams {
         }
 
         // read parameter n
-        let mut buf = [0u8; 8];
+        let mut buf = [0u8; 4];
         r.read_exact(&mut buf)?;
-        let n = usize::from_le_bytes(buf);
+        let n = u32::from_le_bytes(buf) as usize;
 
-        if n > 65535 {
+        if n > 65535 || n == 0 {
             return Err(Error::new(
                 ErrorKind::Other,
                 "The size of n has passed the maximal allowed value.",
