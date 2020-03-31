@@ -10,7 +10,7 @@ edition = "2018"
 pairing-plus = { git = "https://github.com/algorand/pairing-plus", branch = "master" }
 #pairing-plus = "0.17.1"
 #ff = "0.4"
-ff = {git = "https://github.com/algorand/ff"}
+ff-zeroize = {git = "https://github.com/algorand/ff-zeroize"}
 rand = "0.7"
 atoi = "0.3.2"
 zeroize = "1.1.0"

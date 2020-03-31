@@ -3,7 +3,7 @@ use pairing_plus::bls12_381;
 use pairing_plus::bls12_381::Fr;
 use pairing_plus::serdes::SerDes;
 
-extern crate ff;
+extern crate ff_zeroize as ff;
 
 use ff::PrimeField;
 
@@ -54,10 +54,7 @@ fn main() {
 
             let mut f = File::create(&args[2]).unwrap();
             println!("Generating...");
-            let params = generate(
-                Fr::from_repr(bls12_381::FrRepr::from(2)).unwrap(),
-                n,
-            );
+            let params = generate(Fr::from_repr(bls12_381::FrRepr::from(2)).unwrap(), n);
             println!("Generated.");
             params.serialize(&mut f, true).unwrap();
         }

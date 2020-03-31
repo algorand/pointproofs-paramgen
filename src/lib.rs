@@ -11,7 +11,7 @@ use pairing_plus::{CurveAffine, CurveProjective};
 
 use std::io::{Error, ErrorKind, Read, Result, Write};
 
-extern crate ff;
+extern crate ff_zeroize as ff;
 use ff::Field;
 use ff::PrimeField;
 

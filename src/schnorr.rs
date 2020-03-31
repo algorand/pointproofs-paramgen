@@ -3,7 +3,7 @@ use pairing_plus::hash_to_field::HashToField;
 use pairing_plus::serdes::SerDes;
 use pairing_plus::{CurveAffine, CurveProjective, SubgroupCheck};
 
-extern crate ff;
+extern crate ff_zeroize as ff;
 use ff::Field;
 
 extern crate zeroize;
