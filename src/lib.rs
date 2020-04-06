@@ -1,34 +1,29 @@
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::many_single_char_names))]
-
+extern crate ff;
 extern crate pairing_plus as pairing_plus;
-use crate::schnorr::{make_pok, verify_pok, PoK};
-use pairing_plus::bls12_381;
-use pairing_plus::bls12_381::{Bls12, Fq12, Fr, FrRepr, G1Affine, G2Affine, G1, G2};
-use pairing_plus::hash_to_field::{FromRO, HashToField};
-use pairing_plus::serdes::SerDes;
-use pairing_plus::Engine;
-use pairing_plus::{CurveAffine, CurveProjective};
-
-use std::io::{Error, ErrorKind, Read, Result, Write};
-
-extern crate ff_zeroize as ff;
-use ff::Field;
-use ff::PrimeField;
-
 extern crate rand;
-use rand::rngs::OsRng;
-use rand::RngCore;
-
-use std::convert::TryInto;
-
 extern crate zeroize;
-use zeroize::Zeroize;
 
 #[cfg(test)]
 mod test;
 
+mod hash_to_field_veccom;
 pub mod schnorr;
 
+use crate::hash_to_field_veccom::*;
+use crate::schnorr::{make_pok, verify_pok, PoK};
+use ff::Field;
+use ff::PrimeField;
+use pairing_plus::bls12_381;
+use pairing_plus::bls12_381::{Bls12, Fq12, Fr, FrRepr, G1Affine, G2Affine, G1, G2};
+use pairing_plus::serdes::SerDes;
+use pairing_plus::Engine;
+use pairing_plus::{CurveAffine, CurveProjective};
+use rand::rngs::OsRng;
+use rand::RngCore;
+use std::convert::TryInto;
+use std::io::{Error, ErrorKind, Read, Result, Write};
+use zeroize::Zeroize;
 //const N: usize = 1024;
 
 #[derive(Debug, PartialEq)]
@@ -142,7 +137,7 @@ fn random_scalar() -> Fr {
     let mut r: [u8; 64] = [0; 64];
     OsRng {}.fill_bytes(&mut r[..]);
     // For convenience, just using already-implemented hash-to-field
-    let res = Fr::from_ro(r.as_ref(), 0);
+    let res = hash_to_field_veccom(&r[..]);
     r.zeroize();
     res
 }
@@ -347,7 +342,7 @@ pub fn rerandomize<B: AsRef<[u8]>>(
         let len_entropy: u64 = id.len().try_into().unwrap(); // This unwrap would only fail if entropy were more than 2^64 bytes long
         hash_input.extend_from_slice(&len_entropy.to_be_bytes());
         hash_input.extend_from_slice(&entropy.as_ref());
-        let alpha: Fr = HashToField::new(&hash_input, None).with_ctr(0);
+        let alpha: Fr = hash_to_field_veccom(&hash_input);
         hash_input.zeroize();
         alpha
     };

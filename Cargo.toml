@@ -7,10 +7,14 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-pairing-plus = { git = "https://github.com/algorand/pairing-plus", branch = "master" }
-#pairing-plus = "0.17.1"
-#ff = "0.4"
-ff-zeroize = {git = "https://github.com/algorand/ff-zeroize"}
+
+
+pairing-plus = { version = "0.18", git = "https://github.com/algorand/pairing-plus", branch = "master" }
+ff = { version = "0.6.3", git = "https://github.com/algorand/ff-zeroize", features = ["derive"]}
+# ff-zeroize = "0.6.3"
+# pairing-plus = "0.18"
+sha2 = "0.8.0"
 rand = "0.7"
 atoi = "0.3.2"
 zeroize = "1.1.0"
+bigint = { version = "4", default-features = false }

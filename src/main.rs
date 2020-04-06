@@ -3,7 +3,7 @@ use pairing_plus::bls12_381;
 use pairing_plus::bls12_381::Fr;
 use pairing_plus::serdes::SerDes;
 
-extern crate ff_zeroize as ff;
+extern crate ff;
 
 use ff::PrimeField;
 

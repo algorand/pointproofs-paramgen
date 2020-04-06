@@ -1,19 +1,15 @@
+extern crate ff;
+extern crate zeroize;
+
+use crate::hash_to_field_veccom::*;
+use crate::random_scalar;
+use ff::Field;
 use pairing_plus::bls12_381::{Fr, G1Affine, G1};
-use pairing_plus::hash_to_field::HashToField;
 use pairing_plus::serdes::SerDes;
 use pairing_plus::{CurveAffine, CurveProjective, SubgroupCheck};
-
-extern crate ff_zeroize as ff;
-use ff::Field;
-
-extern crate zeroize;
-use zeroize::Zeroize;
-
 use std::convert::TryInto;
-
-use crate::random_scalar;
-
 use std::io::{Error, ErrorKind, Read, Result, Write};
+use zeroize::Zeroize;
 
 pub struct PoK {
     pub(crate) g1x: G1Affine, // g_1^x, where we're proving knowledge of x
@@ -46,7 +42,7 @@ pub fn make_pok(x: Fr, id: &[u8]) -> PoK {
     let len_id: u64 = id.len().try_into().unwrap(); // This unwrap would only fail if id were more than 2^64 bytes long, which it seems safe to assume is not the case
     hash_input.extend_from_slice(&len_id.to_be_bytes());
     hash_input.extend_from_slice(id);
-    let e: Fr = HashToField::new(&hash_input, None).with_ctr(0);
+    let e: Fr = hash_to_field_veccom(&hash_input);
     let s: Fr = {
         let mut s: Fr = e;
         s.mul_assign(&x);
@@ -83,7 +79,8 @@ pub fn verify_pok(pok: &PoK, id: &[u8]) -> bool {
     let len_id: u64 = id.len().try_into().unwrap();
     hash_input.extend_from_slice(&len_id.to_be_bytes());
     hash_input.extend_from_slice(id);
-    let e: Fr = HashToField::new(&hash_input, None).with_ctr(0);
+
+    let e: Fr = hash_to_field_veccom(&hash_input);
 
     let b: G1Affine = {
         let mut b: G1 = p.mul(e);
