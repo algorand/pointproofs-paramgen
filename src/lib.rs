@@ -7,10 +7,10 @@ extern crate zeroize;
 #[cfg(test)]
 mod test;
 
-mod hash_to_field_veccom;
+pub mod hash_to_field_pointproofs;
 pub mod schnorr;
 
-use crate::hash_to_field_veccom::*;
+use crate::hash_to_field_pointproofs::*;
 use crate::schnorr::{make_pok, verify_pok, PoK};
 use ff::Field;
 use ff::PrimeField;
@@ -27,7 +27,7 @@ use zeroize::Zeroize;
 //const N: usize = 1024;
 
 #[derive(Debug, PartialEq)]
-pub struct VeccomParams {
+pub struct PointproofsParams {
     /// parameter N
     pub n: usize,
 
@@ -47,12 +47,12 @@ pub struct VeccomParams {
     pub gt_alpha_nplus1: Fq12,
 }
 
-impl SerDes for VeccomParams {
+impl SerDes for PointproofsParams {
     fn serialize<W: Write>(&self, w: &mut W, compressed: bool) -> Result<()> {
         if !compressed {
             return Err(Error::new(
                 ErrorKind::Other,
-                "veccom params can only be (de)serialized with compressed=true",
+                "Pointproofs params can only be (de)serialized with compressed=true",
             ));
         }
         if self.n > (u32::max_value() as usize) {
@@ -81,7 +81,7 @@ impl SerDes for VeccomParams {
         if !compressed {
             return Err(Error::new(
                 ErrorKind::Other,
-                "veccom params can only be (de)serialized with compressed=true",
+                "Pointproofs params can only be (de)serialized with compressed=true",
             ));
         }
 
@@ -122,7 +122,7 @@ impl SerDes for VeccomParams {
 
         gt_alpha_nplus1 = Fq12::deserialize(r, true)?;
 
-        Ok(VeccomParams {
+        Ok(PointproofsParams {
             n,
             g1_alpha_1_to_n,
             g1_alpha_nplus2_to_2n,
@@ -137,13 +137,13 @@ fn random_scalar() -> Fr {
     let mut r: [u8; 64] = [0; 64];
     OsRng {}.fill_bytes(&mut r[..]);
     // For convenience, just using already-implemented hash-to-field
-    let res = hash_to_field_veccom(&r[..]);
+    let res = hash_to_field_pointproofs(&r[..]);
     r.zeroize();
     res
 }
 
 // Checks that a set of parameters are in the correct form (g2^alpha, g2^alpha^2, etc.) for some alpha
-pub fn consistent(params: &VeccomParams) -> bool {
+pub fn consistent(params: &PointproofsParams) -> bool {
     // First, check all points are in the group, nonzero, and not the generator
     // (Subgroup check is already done in our deserialization code)
     if params
@@ -258,7 +258,7 @@ pub fn consistent(params: &VeccomParams) -> bool {
 }
 
 pub fn check_rerandomization(
-    params: &VeccomParams,
+    params: &PointproofsParams,
     g2alpha_old: G2Affine,
     proof: &PoK,
     id: &[u8],
@@ -275,7 +275,7 @@ pub fn check_rerandomization(
         && consistent(params)
 }
 
-pub fn generate(alpha: Fr, n: usize) -> VeccomParams {
+pub fn generate(alpha: Fr, n: usize) -> PointproofsParams {
     let mut g1_alpha_1_to_n: Vec<G1Affine> = vec![]; // [G1Affine; N] = [G1Affine::zero(); N];
     let mut g1_alpha_nplus2_to_2n: Vec<G1Affine> = vec![]; //[G1Affine; N - 1] = [G2Affine::zero(); N - 1];
     let mut g2_alpha_1_to_n: Vec<G2Affine> = vec![]; //[G2Affine; N] = [G2Affine::zero(); N];
@@ -320,7 +320,7 @@ pub fn generate(alpha: Fr, n: usize) -> VeccomParams {
         scalar.mul_assign(&alpha);
     }
 
-    VeccomParams {
+    PointproofsParams {
         n,
         g1_alpha_1_to_n,
         g1_alpha_nplus2_to_2n,
@@ -331,10 +331,10 @@ pub fn generate(alpha: Fr, n: usize) -> VeccomParams {
 }
 
 pub fn rerandomize<B: AsRef<[u8]>>(
-    params: &VeccomParams,
+    params: &PointproofsParams,
     entropy: B,
     id: &[u8],
-) -> (VeccomParams, PoK) {
+) -> (PointproofsParams, PoK) {
     // alpha = HashToScalar("Rerandomize" || len(entropy) as 8-byte big-endian || entropy)
     let alpha: Fr = {
         let mut hash_input: Vec<u8> = vec![];
@@ -342,7 +342,7 @@ pub fn rerandomize<B: AsRef<[u8]>>(
         let len_entropy: u64 = id.len().try_into().unwrap(); // This unwrap would only fail if entropy were more than 2^64 bytes long
         hash_input.extend_from_slice(&len_entropy.to_be_bytes());
         hash_input.extend_from_slice(&entropy.as_ref());
-        let alpha: Fr = hash_to_field_veccom(&hash_input);
+        let alpha: Fr = hash_to_field_pointproofs(&hash_input);
         hash_input.zeroize();
         alpha
     };
@@ -382,7 +382,7 @@ pub fn rerandomize<B: AsRef<[u8]>>(
     }
 
     (
-        VeccomParams {
+        PointproofsParams {
             n,
             g1_alpha_1_to_n,
             g1_alpha_nplus2_to_2n,

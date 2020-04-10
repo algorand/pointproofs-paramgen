@@ -1,7 +1,7 @@
 extern crate ff;
 extern crate zeroize;
 
-use crate::hash_to_field_veccom::*;
+use crate::hash_to_field_pointproofs::*;
 use crate::random_scalar;
 use ff::Field;
 use pairing_plus::bls12_381::{Fr, G1Affine, G1};
@@ -42,7 +42,7 @@ pub fn make_pok(x: Fr, id: &[u8]) -> PoK {
     let len_id: u64 = id.len().try_into().unwrap(); // This unwrap would only fail if id were more than 2^64 bytes long, which it seems safe to assume is not the case
     hash_input.extend_from_slice(&len_id.to_be_bytes());
     hash_input.extend_from_slice(id);
-    let e: Fr = hash_to_field_veccom(&hash_input);
+    let e: Fr = hash_to_field_pointproofs(&hash_input);
     let s: Fr = {
         let mut s: Fr = e;
         s.mul_assign(&x);
@@ -80,7 +80,7 @@ pub fn verify_pok(pok: &PoK, id: &[u8]) -> bool {
     hash_input.extend_from_slice(&len_id.to_be_bytes());
     hash_input.extend_from_slice(id);
 
-    let e: Fr = hash_to_field_veccom(&hash_input);
+    let e: Fr = hash_to_field_pointproofs(&hash_input);
 
     let b: G1Affine = {
         let mut b: G1 = p.mul(e);

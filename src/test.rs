@@ -11,7 +11,7 @@ use crate::schnorr::{make_pok, verify_pok};
 // fn test_read_param() {
 //     let mut f = std::fs::File::open("first.param").unwrap();
 //
-//     let _t = crate::VeccomParams::deserialize(&mut f, true).unwrap();
+//     let _t = crate::PointproofsParams::deserialize(&mut f, true).unwrap();
 // }
 
 #[test]
@@ -23,7 +23,7 @@ fn test_param() {
     t.serialize(&mut f, true).unwrap();
 
     let mut ff = std::fs::File::open("3.param").unwrap();
-    let tt = crate::VeccomParams::deserialize(&mut ff, true).unwrap();
+    let tt = crate::PointproofsParams::deserialize(&mut ff, true).unwrap();
 
     assert_eq!(t, tt);
 }

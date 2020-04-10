@@ -1,5 +1,5 @@
 [package]
-name = "veccom-paramgen"
+name = "pointproofs-paramgen"
 version = "0.1.0"
 authors = ["Adam <adam@algorand.com>"]
 edition = "2018"

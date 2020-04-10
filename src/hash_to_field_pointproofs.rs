@@ -1,7 +1,7 @@
-//! This file is part of the veccom crate.
+//! This file is part of the pointproofs-paramgen crate.
 //! It defines the hash_to_field functions that are more efficient than `bls::hash_to_field`
 //! The algorithms are described here:
-//! https://github.com/algorand/veccom-rust/blob/master/SPEC.md#hashes
+//! https://github.com/algorand/pointproofs/blob/master/SPEC.md#hashes
 use bigint::U512;
 use ff::PrimeField;
 use pairing_plus::bls12_381::{Fr, FrRepr};
@@ -9,16 +9,16 @@ use sha2::{Digest, Sha512};
 use std::ops::Rem;
 
 /// A wrapper of `hash_to_field` that outputs `Fr`s instead of `FrRepr`s.
-/// hash_to_field_veccom use SHA 512 to hash a blob into a non-zero field element
-pub(crate) fn hash_to_field_veccom<Blob: AsRef<[u8]>>(input: Blob) -> Fr {
-    // the hash_to_field_repr_veccom should already produce a valid Fr element
+/// hash_to_field_pointproofs use SHA 512 to hash a blob into a non-zero field element
+pub fn hash_to_field_pointproofs<Blob: AsRef<[u8]>>(input: Blob) -> Fr {
+    // the hash_to_field_repr_pointproofs should already produce a valid Fr element
     // so it is safe to unwrap here
-    Fr::from_repr(hash_to_field_repr_veccom(input.as_ref())).unwrap()
+    Fr::from_repr(hash_to_field_repr_pointproofs(input.as_ref())).unwrap()
 }
 
 /// Hashes a blob into a non-zero field element.
-/// hash_to_field_veccom use SHA 512 to hash a blob into a non-zero field element.
-pub(crate) fn hash_to_field_repr_veccom<Blob: AsRef<[u8]>>(input: Blob) -> FrRepr {
+/// hash_to_field_pointproofs use SHA 512 to hash a blob into a non-zero field element.
+pub(crate) fn hash_to_field_repr_pointproofs<Blob: AsRef<[u8]>>(input: Blob) -> FrRepr {
     let mut hasher = Sha512::new();
     hasher.input(input);
     let hash_output = hasher.result();
@@ -32,7 +32,7 @@ pub(crate) fn hash_to_field_repr_veccom<Blob: AsRef<[u8]>>(input: Blob) -> FrRep
     t
 }
 
-/// this is Veccom's Octect String to Integer Primitive (os2ip) function
+/// this is pointproofs's Octect String to Integer Primitive (os2ip) function
 /// https://tools.ietf.org/html/rfc8017#section-4
 /// the input is a 64 bytes array, and the output is between 0 and p-1
 /// i.e., it performs mod operation by default.

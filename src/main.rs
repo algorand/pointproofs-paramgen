@@ -1,24 +1,14 @@
+extern crate atoi;
 extern crate pairing_plus as pairing_plus;
-use pairing_plus::bls12_381;
-use pairing_plus::bls12_381::Fr;
-use pairing_plus::serdes::SerDes;
-
-extern crate ff;
-
-use ff::PrimeField;
-
-use std::fs::File;
-
+extern crate pointproofs_paramgen;
 extern crate rand;
+
+use atoi::atoi;
+use pairing_plus::serdes::SerDes;
+use pointproofs_paramgen::*;
 use rand::rngs::OsRng;
 use rand::RngCore;
-
-extern crate veccom_paramgen;
-use veccom_paramgen::*;
-
-extern crate atoi;
-use atoi::atoi;
-
+use std::fs::File;
 use zeroize::Zeroize;
 
 fn usage(progname: &str) {
@@ -54,7 +44,17 @@ fn main() {
 
             let mut f = File::create(&args[2]).unwrap();
             println!("Generating...");
-            let params = generate(Fr::from_repr(bls12_381::FrRepr::from(2)).unwrap(), n);
+            // the initial vector is set to the first 100 digits of pi:
+            // 3 .
+            // 1 4 1 5 9 2 6 5 3 5 8 9 7 9 3 2 3 8 4 6
+            // 2 6 4 3 3 8 3 2 7 9 5 0 2 8 8 4 1 9 7 1
+            // 6 9 3 9 9 3 7 5 1 0 5 8 2 0 9 7 4 9 4 4
+            // 5 9 2 3 0 7 8 1 6 4 0 6 2 8 6 2 0 8 9 9
+            // 8 6 2 8 0 3 4 8 2 5 3 4 2 1 1 7 0 6 7 9
+            let pi_100 = "31415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679";
+            let alpha = hash_to_field_pointproofs::hash_to_field_pointproofs(pi_100);
+
+            let params = generate(alpha, n);
             println!("Generated.");
             params.serialize(&mut f, true).unwrap();
         }
@@ -66,7 +66,7 @@ fn main() {
             let id = args[2].as_bytes();
             println!("Loading params...");
             let mut f = File::open(&args[3]).unwrap();
-            let params_in = VeccomParams::deserialize(&mut f, true).unwrap();
+            let params_in = PointproofsParams::deserialize(&mut f, true).unwrap();
             println!("Loaded.");
             println!("Checking...");
             if !consistent(&params_in) {
@@ -101,11 +101,11 @@ fn main() {
             println!("Loading old (assumed-good) params from {}", &args[3]);
             let params_old = {
                 let mut f = File::open(&args[3]).unwrap();
-                VeccomParams::deserialize(&mut f, true).unwrap()
+                PointproofsParams::deserialize(&mut f, true).unwrap()
             };
             println!("Loading new params (with proof) from {}", &args[4]);
             let mut f = File::open(&args[4]).unwrap();
-            let params_new = VeccomParams::deserialize(&mut f, true).unwrap();
+            let params_new = PointproofsParams::deserialize(&mut f, true).unwrap();
             let proof = schnorr::PoK::deserialize(&mut f, true).unwrap();
 
             println!("Verifying...");
@@ -124,7 +124,7 @@ fn main() {
             let beacon = args[2].as_bytes();
             println!("Loading params...");
             let mut f = File::open(&args[3]).unwrap();
-            let params_in = VeccomParams::deserialize(&mut f, true).unwrap();
+            let params_in = PointproofsParams::deserialize(&mut f, true).unwrap();
             println!("Loaded.");
             println!("Computing final parameters...");
             let (params_out, _) = rerandomize(&params_in, &beacon, b""); // Since the beacon value is public, we don't care about the schnorr proof, so we don't care about id_string here
