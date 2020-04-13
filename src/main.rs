@@ -14,7 +14,7 @@ use zeroize::Zeroize;
 fn usage(progname: &str) {
     eprintln!("Usage:
 	{0} init /tmp/params.out parameter_n
-		Generates starting parameters with alpha = 2
+		Generates starting parameters using a fixed value of alpha
 	{0} evolve id_string /tmp/params.in /tmp/params.out
 		Reads old params from /tmp/params.in, rerandomizes them and writes them (with a proof of knowledge of the mixed-in exponent) to /tmp/params.out, using id_string as your identity
 	{0} verify id_string /tmp/params.old /tmp/params.new

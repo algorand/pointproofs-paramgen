@@ -8,19 +8,24 @@ This crate generates parameters for [Pointproofs](https://github.com/algorand/po
 ```
 init params.out parameter_n
 ```
-Generate a parameter set for `parameter_n`, serialized, and stored in `params.out`.
+Generate starting parameters (with no entropy) for `parameter_n` and stores them in `params.out`.
 
 
 ```
-evolve param.in param.out
+evolve id_string params.in params.out
 ```
-Reads old params from `params.in`, rerandomizes them and writes them (with a proof of knowledge of the mixed-in exponent) to `params.out`
+Reads old params from `params.in`, rerandomizes them and writes them (with a proof of knowledge of the mixed-in exponent) to `params.out`, using `id_string` as your identity.
 
 
 ```
-verify params.old params.new
+verify id_string params.old params.new
 ```
-Given assumed-good old params and a newly rerandomized version (with a proof of knowledge of the mixed-in exponent), verify that the new parameters were rerandomized correctly (i.e., check that the parameters are self-consistent and that the proof is correct).
+Given assumed-good old params and a newly rerandomized version (with a proof of knowledge of the mixed-in exponent), verify that the new parameters were rerandomized correctly (i.e., check that the parameters are self-consistent and that the proof is correct for prover identity `id_string`).
+
+```
+finalize beacon_value params.in params.final
+```
+Given assumed-good params in `params.in` and the value of the shared random beacon, output the final set of parameters to `params.final`.
 
 ## Sample param
 
