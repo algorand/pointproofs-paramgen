@@ -31,3 +31,11 @@ Given assumed-good params in `params.in` and the value of the shared random beac
 
 A sample file `crs.param` is provided for testing purpose. It supports vectors
 of dimensions = 8. This file shall __NOT__ be used in products.
+
+## Security notes
+
+* The "evolve" operation is NOT CONSTANT TIME and should not be run in a setting where an attacker can precisely measure runtime.
+
+* [consistencycheck.pdf](./consistencycheck.pdf) contains a description and security proof for the probabilistic consistency check used as part of the `verify` operation.
+
+* This code is NOT production ready yet. It passed one external audit, but additional auditing and testing is required before deployment. Moreover, in order to produce trustworthy public parameters, this tool needs to be used as part of a secure multiparty protocol, the details of which are not yet finalized.
