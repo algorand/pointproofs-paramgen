@@ -1,4 +1,4 @@
-extern crate ff;
+extern crate ff_zeroize as ff;
 extern crate zeroize;
 
 use crate::hash_to_field_pointproofs::*;

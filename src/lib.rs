@@ -1,5 +1,5 @@
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::many_single_char_names))]
-extern crate ff;
+extern crate ff_zeroize as ff;
 extern crate pairing_plus as pairing_plus;
 extern crate rand;
 extern crate zeroize;
