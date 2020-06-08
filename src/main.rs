@@ -8,7 +8,7 @@ use pairing_plus::serdes::SerDes;
 use pointproofs_paramgen::*;
 use rand::rngs::OsRng;
 use rand::RngCore;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use zeroize::Zeroize;
 
 fn usage(progname: &str) {
@@ -42,7 +42,7 @@ fn main() {
                 }
             };
 
-            let mut f = File::create(&args[2]).unwrap();
+            let mut f = OpenOptions::new().write(true).create_new(true).open(&args[2]).unwrap();
             println!("Generating...");
             // the initial vector is set to the first 100 digits of pi:
             // 3 .
@@ -87,7 +87,7 @@ fn main() {
             );
 
             println!("Serializing params and proof to {}", &args[4]);
-            let mut f = File::create(&args[4]).unwrap();
+            let mut f = OpenOptions::new().write(true).create_new(true).open(&args[4]).unwrap();
             params_out.serialize(&mut f, true).unwrap();
             proof.serialize(&mut f, true).unwrap();
             println!("Done!");
@@ -130,7 +130,7 @@ fn main() {
             let (params_out, _) = rerandomize(&params_in, &beacon, b""); // Since the beacon value is public, we don't care about the schnorr proof, so we don't care about id_string here
             println!("Computed.");
             println!("Serializing final params to {}", &args[4]);
-            let mut f = File::create(&args[4]).unwrap();
+            let mut f = OpenOptions::new().write(true).create_new(true).open(&args[4]).unwrap();
             params_out.serialize(&mut f, true).unwrap();
             println!("Done!");
         }
