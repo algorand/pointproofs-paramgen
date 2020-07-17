@@ -1,0 +1,147 @@
+\documentclass{article}
+\usepackage{amsmath,amsthm,amssymb}
+
+\newcommand{\G}{\mathbb{G}}
+
+\newcommand{\gOne}[1]{g_1^{\alpha^{#1}}}
+\newcommand{\gTwo}[1]{g_2^{\alpha^{#1}}}
+
+\newcommand{\?}{\stackrel{?}{=}}
+
+\newtheorem{claim}{Claim}
+
+\begin{document}
+
+\subsection*{Overview}
+
+Public parameters are of the form
+\begin{align*}
+g_1^\alpha, \gOne{2}, \dots, \gOne{N}&,  \gOne{N+2}, \gOne{N+3}, \dots, \gOne{2N} \\
+g_2^{\alpha}, \gTwo{2}, \dots, \gTwo{N}&,  \gTwo{N+2}, \gTwo{N+3}, \dots, \gTwo{2N}
+\end{align*}
+
+where $\alpha$ is a uniform nonzero scalar unknown to the adversary. Note that the $(N+1)$ power is omitted.
+
+
+
+\subsection*{Consistency Check}
+\newcommand{\hOne}[1]{\overline{\gOne{#1}}}
+\newcommand{\hTwo}[1]{\overline{\gTwo{#1}}}
+
+Given an alleged set of public parameters $
+\left\{ \overline{g_1{^\alpha}}, \dots; \overline{g_2^{\alpha}}, \dots \right \}
+$, one can check that it is of the correct form. This is described in a separate document.
+
+\subsection*{Parameter Generation MPC}
+
+\subsubsection*{Notation}
+\newcommand{\powers}{\mathrm{Powers}}
+For convenience, let $\powers(g_1^\alpha)$ be shorthand for
+\[
+g_1^\alpha, \gOne{2}, \dots, \gOne{N},  \gOne{N+2}, \gOne{N+3}, \dots, \gOne{2N}, g_2^{\alpha}, \gTwo{2}, \dots, \gTwo{N}, \gTwo{N+2}, \gTwo{N+3}, \dots, \gTwo{2N}
+\]
+
+and let $\powers(g_1^\alpha)^\beta$ denote $\powers(g_1^{\alpha\beta})$.
+Note that $\powers(g_1^\alpha)^\beta$ can be computed from $\powers(g_1^\alpha)$ and $\beta$ without knowing $\alpha$ by raising each element of $\powers(g_1^\alpha)$ to the corresponding power of $\beta$. 
+
+%\begin{align*}
+%&\left(g_1^\alpha\right)^{\beta}, \left(\gOne{2}\right)^{\beta^2}, \dots, \left(\gOne{N}\right)^{\beta^N} \\
+%&\left(\gOne{N+2}\right)^{\beta^{N+2}}, \left(\gOne{N+3}\right)^{\beta^{N+3}}, \dots, \left(\gOne{2N}\right)^{\beta^{2N}} \\
+%&\left(g_2^{\alpha}\right)^{\beta}, \left(\gTwo{2}\right)^{\beta^2}, \dots, \left(\gTwo{N}\right)^{\beta^N} 
+%\end{align*}
+%i.e., raising each element of $\powers(g_1^\alpha)$ to the corresponding power of beta.
+%Note that $\powers(g_1^\alpha)^\beta = \powers(g_1^{\alpha \beta})$ and that it can be efficiently computed from $\powers(g_1^\alpha)$ and $\beta$ without knowledge of $\alpha$.
+
+Given a vector of $2N-1$ elements of $\G_1$ and $2N-1$ elements of $\G_2$, the consistency check in the previous section allows verifying that there exists a nonzero $\alpha$ for which these elements are $\powers(g_1^\alpha)$. This consistency check is described in a separate document.
+
+\newcommand{\ZKPoK}{\operatorname{ZKPoK}}
+\newcommand{\id}{\mathrm{id}}
+
+Let $\ZKPoK$ be a zero knowledge proof of knowledge of exponent scheme where proofs are bound to an arbitrary string (an identity) such that seeing a simulated proof for identity $I$ does not affect soundness of proofs for any identity other than $I$. Write $\ZKPoK(x, I)$ for a zero knowledge proof of knowledge of exponent of $g_1^x$ bound to identity $I$. 
+In the random oracle model, $\ZKPoK(x, I)$ can be a Schnorr signature of message $I$ using private key $x$.
+
+\subsubsection*{Protocol}
+This protocol is similar to the ZCash ``Powers of Tau" protocol.
+
+Let there be $k$ parties $P_1, \dots, P_k$, each with distinct identity $\id_1, \dots \id_k$. Let $x_0$ be some public fixed nonzero scalar known in advance (e.g., 2).
+The first party picks a random scalar $\delta_1$, broadcasts $\powers(g_1^{x_0})^{\delta_1})$ along with $g_1^{\delta_1}$ and $\ZKPoK(\delta_1; \id_1)$, and erases $\delta_1$.
+All parties check the consistency of $\powers(g_1^{x_0 \delta_1})$, check that $e(g_1^{\delta_1}, g_2^{x_0}) = e(g_1^{x_0 \delta_1}, g_2)$, and check the $\ZKPoK$ and abort on failure.
+
+The second party picks a random scalar $\delta_2$, broadcasts $\powers(g_1^{x_0 \delta_1})^{\delta_2}$ along with $g_1^{\delta_2}$ and $\ZKPoK(\delta_2; \id_2)$, and erases $\delta_2$.
+
+All parties check the consistency of $\powers(g_1^{x_0 \delta_1 \delta_2})$, check that $e(g_1^{\delta_2}, g_2^{x_0 \delta_1}) = e(g_1^{x_0 \delta_1 \delta_2}, g_2)$, and check that the $\ZKPoK$ is a valid proof of knowledge of exponent for $g_1^{\delta_2}$.
+
+In general, if party $i-1$ broadcast $\powers(g_1^{x_{i-1}})$, then party $i$ will broadcast $\powers(g_1^{x_{i-1}})^{\delta_i}$ along with $g_1^{\delta_i}$ and $\ZKPoK(\delta_i; \id_i)$. All parties will check the consistency of $\powers(g_1^{x_{i-1}})^{\delta_i}$, check that $e(g_1^{\delta_i}, g_2^{x_{i-1}}) = e(g_1^{x_{i-1} \delta_i}, g_2)$, and check that the $\ZKPoK$ is a valid proof of knowledge of exponent for $g_1^{\delta_i}$.
+
+Finally, after the last party has participated (sending $\powers(g_1^{x_k})$) and all parties have done the corresponding consistency / pairing / PoK checks, a scalar $\beta$ is sampled from a public random beacon and the final output parameters are $\powers(g_1^{x_k})^\beta$.
+
+\subsubsection*{Proof of security}
+\newcommand{\Adv}{\mathcal{A}}
+\newcommand{\Sim}{\mathrm{Sim}}
+\begin{claim}
+There exists a simulator $\Sim$ such that for all PPT adversaries $\Adv$ corrupting all but one party, assuming $\Adv$ does not cause an abort,
+\[
+\left\{ \left( \text{$\Adv$'s view during real execution}, \text{Real output params} \right) \right\}
+\approx
+\left\{ \alpha \gets \$ \::\: \left( \Sim^{\Adv}(\powers(g_1^\alpha)), \powers(g_1^\alpha) \right) \right\}
+\]
+\end{claim}
+\begin{proof}
+Let $P_i$ be the (sole) honest party. The simulator has been given $\powers(g_1^\alpha)$ for some uniformly sampled nonzero $\alpha$ but has not been given $\alpha$. The simulator gets to choose $P_i$'s message and the random beacon value, it gets black-box access to the adversary, and it can (by programming a random oracle or setting a CRS) simulate valid proofs for the $\ZKPoK$ scheme. The goal of the simulator is to choose $P_i$'s message and a random beacon value so as to produce valid transcripts giving $\powers(g_1^\alpha)$ as the output parameters, such that the distribution of simulated transcripts is indistinguishable from that of real transcripts generated by running the protocol with the same adversary and an honest $P_i$ (conditioned on having $\powers(g_1^\alpha)$ as output).
+
+The simulator first does the following:
+\begin{itemize}
+\item Runs $\Adv.P_{1}$ to get $\overline{\powers(g_1^{x_1})}, \overline{\ZKPoK(\delta_1; \id_1)}, \overline{g_1^{\delta_1}}$.
+\item Rewinds to extract $\delta_1$ from the $\ZKPoK$
+\item \dots
+\item Runs $\Adv.P_{i-1}$ to get $\overline{\powers(g_1^{x_{i-1}})}, \overline{\ZKPoK(\delta_{i-1}; \id_{i-1})}, \overline{g_1^{\delta_{i-1}}}$.
+\item Rewinds to extract $\delta_{i-1}$ from the $\ZKPoK$
+\end{itemize}
+
+Note that an honest $P_i$ would abort unless all consistency checks pass, so since we assume $\Adv$ does not cause an abort, each $\overline{\powers(g^{x_j})}$ is in fact $\powers(g^{x_j})$ (for some $x_j$). Furthermore an honest $P_i$ would abort if any of the proofs of knowledge of exponent for $\overline{g_1^{\delta_j}}$ fail, so by soundness of the $\ZKPoK$ scheme the extracted $\delta_j$ is the correct exponent in $\overline{g_1^{\delta_j}}$. Finally, since honest $P_i$ would check that $e(g_1^{\delta_j}, g_2^{x_{j-1}}) = e(g_1^{x_j}, g_2)$ for all $1 \le j < i$, we know that $x_{i-1} = x_0 \delta_1 \dots \delta_{i-1}$. In particular, the simulator knows $x_{i-1}$, the exponent in the set of powers sent by $P_{i-1}$.
+
+The simulator now picks a random nonzero scalar $r$.
+The simulated $P_i$ now broadcasts 
+\[
+\powers(g_1^\alpha)^{r x_{i-1}} \,,\, (g_1^\alpha)^r, \mathrm{ZKSim}((g_1^{\alpha})^r; \id_i)
+\]
+where ZKSim is the ZK simulator for the $\ZKPoK$ scheme.
+
+The simulator now runs the remaining $\Adv.P_{i+1}, \dots, \Adv.P_{k}$ and extracts $\delta_{i+1}, \dots, \delta_{k}$ as before. Note that $P_i$'s simulated $\ZKPoK$ is tied to $\id_i$ and so giving it to the adversary does not impact soundness of the remaining adversary-produced $\ZKPoK$, which are tied to $\id_j \ne \id_i$.
+
+As before, the consistency checks ensure that the last party's message is $\powers(g_1^{\alpha r x_{i-1} \Delta})$, where $\Delta = \delta_{i+1} \dots \delta_{k}$. Finally the simulator programs the random beacon value to be $\hat{\beta} = \frac{1}{r x_{i-1} \Delta}$. Now the final output is $\powers(g_1^{\alpha r x_{i-1} \Delta})^{\hat{\beta}} = \powers(g_1^\alpha)$.
+
+We now compare the real view of the adversary to a view simulated by this simulator. All players' messages before $P_i$ are sampled identically (by running the adversary) in the two views.
+
+In the real view, $P_i$'s message is sampled as follows:
+\[
+\left\{ \delta_i \gets \$ , \powers(g^{x_{i-1}}) \gets \Adv.P_{i-1} \::\: (\powers(g^{x_{i-1}})^{\delta_i},\, g_1^{\delta_i},\, \ZKPoK(\delta_i; \id_i)) \right\}
+\]
+
+In the simulated view, $P_i$'s message is sampled as follows, where $r$ is an already-fixed nonzero scalar:
+\[
+\left\{ \overline{\powers(g^{x_{i-1}})} \gets \Adv.P_{i-1} \::\: (\powers(g^{\alpha})^{r x_{i-1}},\, g_1^{\alpha r},\, \mathrm{ZKSim}(g_1^{\alpha r}; \id_i)) \right\}
+\]
+
+$\alpha$ is uniform, nonzero, and independent of $x_{i-1}$, so in both the real and simulated views, $P_i$'s message is distributed as
+\[
+\begin{Bmatrix}
+\powers(g^u) \text{ for uniform nonzero $u$ independent of $x_{i-1}$}, \\
+\text{the unique $g_1^z$ such that $e(g_1^z, g_2^{x_{i-1}}) = e(g_1^{u}, g_2)$}, \\
+\text{a ZKPoK of exponent of $g_1^z$ using identity $\id_i$}
+\end{Bmatrix}
+\]
+noting that the real and simulated ZKPoKs are indistinguishable by the zero-knowledge property of the ZKPoK scheme. Note also that the distribution of $P_i$'s message is independent of $r$.
+
+All messages up to and including $P_i$'s are indistinguishable in the two views, so the remaining parties' messages (which are in both views generated by running the adversary on all messages so far) are indistinguishable as well.
+
+Finally, the real random beacon value $\beta$ is a uniform nonzero scalar, and the simulated beacon value is
+\[
+\hat{\beta} = \frac1{rx_{i-1} \Delta}
+\]
+where $\Delta$ is extracted from the adversary's ZKPoKs after $P_i$. $r$ is uniform nonzero and independent of $x_{i-1}$ and $\Delta$ (since $P_i$'s message is independent of $r$). Therefore $\hat{\beta}$ is uniform nonzero.
+
+The output parameters in the simulated view are uniquely determined by the messages and the random beacon. Thus the real and simulated views are identical.
+\end{proof}
+
+\end{document}

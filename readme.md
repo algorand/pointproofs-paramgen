@@ -38,4 +38,8 @@ of dimensions = 8. This file shall __NOT__ be used in products.
 
 * [consistencycheck.pdf](./consistencycheck.pdf) contains a description and security proof for the probabilistic consistency check used as part of the `verify` operation.
 
-* This code is NOT production ready yet. It passed one external audit, but additional auditing and testing is required before deployment. Moreover, in order to produce trustworthy public parameters, this tool needs to be used as part of a secure multiparty protocol, the details of which are not yet finalized.
+* [usage.md](./usage.md) describes how to carry out a secure multiparty computation to generate parameters using this tool.
+
+* [security.pdf](./security.pdf) gives a security proof of said multiparty protocol.
+
+* This code is NOT production ready yet. It passed one external audit, but additional auditing and testing is required before deployment.
